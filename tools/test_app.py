@@ -177,6 +177,25 @@ def parse_a_tooltip_reading():
 
 
 @test
+def finds_a_white_plant_tooltip():
+    import cv2
+    img = cv2.imread(os.path.join(ROOT, "tools", "fixtures", "white_plant_tooltip.png"))
+    found = reader.find_tooltips(img)
+    assert len(found) == 1 and found[0].kind == "flora" and found[0].frame == "flora_single", found
+    t = found[0]
+    assert abs((t.x1 - t.x0) - 383) < 6 and abs((t.y1 - t.y0) - 44) < 4, t
+
+
+@test
+def parse_a_white_plant():
+    r = reader.TooltipReading(kind="flora", name="VIVID ROOTS", base="", rarity="normal")
+    r.lines = [reader.TextLine(0, 10, 0, 100, "mod", "GUARDED BY SACRED FAUNA")]
+    p = mods.parse_tooltip(r)
+    assert (p.colour, p.base, p.name, p.rarity) == ("Vivid", "Vivid Roots", "Vivid Roots", "normal"), p
+    assert not p.problems and not p.mod_values(), (p.problems, p.mod_values())
+
+
+@test
 def settings_round_trip():
     d = tempfile.mkdtemp()
     s = settings_mod.Settings(os.path.join(d, "settings.json"))

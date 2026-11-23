@@ -163,7 +163,7 @@ class Estimator:
         for item, count in rewards.items():
             text = WORDING[item] if item in WORDING else mod_text("reward:" + item, count)
             if item == DECK and decks is not None:
-                right = f"≈ {decks:g} decks" + (f" ≈ {decks * p_deck:.0f}c" if p_deck else "")
+                right = f"≈ {decks:.0f} decks" + (f" ≈ {decks * p_deck:.0f}c" if p_deck else "")
                 lines.append({"icon": self.icons.get("reward:" + item, "good"), "text": text, "colour": "reward",
                               "right": right, "effect": 1.0 + (decks * (p_deck or 0)) / 100})
             elif item == DECK:

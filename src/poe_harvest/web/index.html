@@ -739,7 +739,7 @@ function renderRerolls() {
   if (!R.length) { $("#rerollTable").innerHTML = '<p class="empty">No rerolled plants with a result yet.</p>'; return; }
   const rows = R.map(r => { const e = byId[r.id];
     const rollsHtml = r.rolls.map(x => `${esc(x.name || "?")}${x.est != null ? ` <b>${fmt(Math.round(x.est))}</b>` : ' <span class="muted">(not read cleanly)</span>'}` +
-      (x.decks ? ` <span class="muted">+ ${fmt(x.decks)} decks</span>` : "")).join(" → ");
+      (x.decks ? ` <span class="muted">+ ${fmt(Math.round(x.decks))} decks</span>` : "")).join(" → ");
     return `<tr class="clickable" data-id="${r.id}">
       <td class="when">${esc((e.node_time || "").replace("T", " ").slice(5, 16))}</td><td>${esc(e.map)}</td>
       <td>${typeMark(r.type)}${rollsHtml}${r.reads_missing ? ' <span class="muted">· not every roll was read</span>' : ""}</td>
@@ -825,7 +825,7 @@ function encRows(list) {
       <td>${e.kind ? typeMark(e.kind === "specimen" ? "Specimen" : e.type) : ""}${esc(e.plant || "—")}</td>
       <td>${modChips(e)}</td>
       <td class="num">${e.stacks.length ? e.stacks.map(s => fmt(s[0]) + (e.stacks.length > 1 || s[1] !== e.type ? ` <span class="muted">${esc(s[1] || "")}</span>` : "")).join(" + ") : "—"}</td>
-      <td class="num">${e.est != null ? fmt(Math.round(e.est)) : ""}${e.decks ? ` <span class="muted">+ ${fmt(e.decks)} decks</span>` : ""}</td>
+      <td class="num">${e.est != null ? fmt(Math.round(e.est)) : ""}${e.decks ? ` <span class="muted">+ ${fmt(Math.round(e.decks))} decks</span>` : ""}</td>
       <td class="num">${e.rel != null && e.status === "ok" ? pct(e.rel - 1) : ""}</td>
       <td class="num">${e.rerolls || ""}</td>
       <td>${statusHtml(e.status)}</td></tr>`).join("") + "</tbody></table>";

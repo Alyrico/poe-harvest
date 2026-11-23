@@ -72,15 +72,23 @@ class Tooltip:
     y1: int              # bottom of the header
     score: float
     traced: str = ""     # "left"/"right" when that corner was hidden and the edge was traced
+    frame: str = ""      # which header frame matched (see FRAMES)
+
+
+# header frames: template file stem -> the kind of tooltip it belongs to.
+#   flora:        a rare plant (gold frame, two lines: name + base)
+#   flora_single: a normal (white) or magic plant (one line, plain frame) - white maps
+#   specimen:     a Sacred Specimen (boss)
+FRAMES = {"flora": "flora", "flora_single": "flora", "specimen": "specimen"}
 
 
 def _load_templates():
     t = {}
-    for kind in ("flora", "specimen"):
-        left = cv2.imread(os.path.join(TEMPLATE_DIR, f"{kind}_corner_left.png"))
+    for frame in FRAMES:
+        left = cv2.imread(os.path.join(TEMPLATE_DIR, f"{frame}_corner_left.png"))
         if left is None:
-            raise FileNotFoundError(f"missing template for {kind}")
-        t[kind] = (left, cv2.flip(left, 1))
+            raise FileNotFoundError(f"missing template for {frame}")
+        t[frame] = (left, cv2.flip(left, 1))
     return t
 
 
@@ -91,6 +99,8 @@ _TEMPLATES = None
 # border can disappear under the buff icons at the top of the screen, the bottom one rarely does.
 _BORDER = {
     "flora":    dict(row=3, bottom=(69, 75), test=lambda r, g, b: (r > 140) & (g > 100) & (b < 110) & (r > b + 60)),
+    # plain frame: a light line, grey for normal plants (blue-ish for magic, so only brightness counts)
+    "flora_single": dict(row=2, bottom=(40, 44), test=lambda r, g, b: (r + g + b > 330) & (np.abs(r - g) < 60)),
     "specimen": dict(row=3, bottom=(55, 60), test=lambda r, g, b: (b > 90) & (b > r + 30) & (g > 50)),
 }
 
@@ -105,11 +115,11 @@ def _peaks(res, thr, min_dist=20):
     return keep
 
 
-def _trace_border(img, kind, y_top, x_start, step, max_gap=40):
+def _trace_border(img, frame, y_top, x_start, step, max_gap=40):
     """Follow the header's bottom border from x_start in direction `step` (+1/-1), bridging small
     gaps. Returns the last x that was still border. y_top = top of the corner template."""
-    test = _BORDER[kind]["test"]
-    lo, hi = _BORDER[kind]["bottom"]
+    test = _BORDER[frame]["test"]
+    lo, hi = _BORDER[frame]["bottom"]
     h, w = img.shape[:2]
     rows = img[max(0, y_top + lo):min(h, y_top + hi)].astype(int)
     if rows.size == 0:
@@ -157,7 +167,8 @@ def find_tooltips(img: np.ndarray) -> list[Tooltip]:
         _TEMPLATES = _load_templates()
     small = cv2.resize(img, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
     found: list[Tooltip] = []
-    for kind, (tl, tr) in _TEMPLATES.items():
+    for frame, (tl, tr) in _TEMPLATES.items():
+        kind = FRAMES[frame]
         h, w = tl.shape[:2]
         tls = cv2.resize(tl, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
         trs = cv2.resize(tr, None, fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
@@ -170,18 +181,23 @@ def find_tooltips(img: np.ndarray) -> list[Tooltip]:
             if cands:
                 i, sr, xr, yr = min(cands, key=lambda c: c[2])
                 used_r.add(i)
-                found.append(Tooltip(kind, xl, yl, xr + w, yl + h, round(min(sl, sr), 3)))
+                found.append(Tooltip(kind, xl, yl, xr + w, yl + h, round(min(sl, sr), 3), frame=frame))
             elif sl > 0.8:   # right corner hidden: trace the border to find the right edge
-                xr = _trace_border(img, kind, yl, xl + w, +1)
+                xr = _trace_border(img, frame, yl, xl + w, +1)
                 if xr - xl > 250:
-                    found.append(Tooltip(kind, xl, yl, xr + 1, yl + h, round(sl, 3), traced="right"))
+                    found.append(Tooltip(kind, xl, yl, xr + 1, yl + h, round(sl, 3), traced="right", frame=frame))
         for i, (sr, xr, yr) in enumerate(rights):
             if i in used_r or sr < 0.8:
                 continue
-            xl = _trace_border(img, kind, yr, xr, -1)
+            xl = _trace_border(img, frame, yr, xr, -1)
             if xr + w - xl > 250:
-                found.append(Tooltip(kind, xl, yr, xr + w, yr + h, round(sr, 3), traced="left"))
-    return found
+                found.append(Tooltip(kind, xl, yr, xr + w, yr + h, round(sr, 3), traced="left", frame=frame))
+    # two frames matching the same tooltip: keep the better match
+    keep: list[Tooltip] = []
+    for t in sorted(found, key=lambda t: -t.score):
+        if all(min(t.x1, k.x1) - max(t.x0, k.x0) < 50 or min(t.y1, k.y1) - max(t.y0, k.y0) < 10 for k in keep):
+            keep.append(t)
+    return keep
 
 
 def nearest_tooltip(tooltips: list[Tooltip], cursor: tuple[int, int] | None):

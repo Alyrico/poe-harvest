@@ -120,7 +120,7 @@ class EncounterTracker:
         p = ev.parsed
         mods = p.mod_values()
         problems = list(p.problems) + [f"not recognised: {u}" for u in p.unknown]
-        if p.kind == "flora" and not mods:
+        if p.kind == "flora" and not mods and p.rarity != "normal":     # a white plant has no mods
             problems.append("no mods read")
         clean = not problems
         map_id = self._map(ev)
@@ -210,7 +210,7 @@ class EncounterTracker:
             lines.append(("? " + u.capitalize(), "bad"))
         for prob in p.problems:
             lines.append(("! " + prob, "bad"))
-        if p.kind == "flora" and not mods:
+        if p.kind == "flora" and not mods and p.rarity != "normal":
             lines.append(("! no mods read - press Numpad 1 again", "bad"))
         if w:          # a count that couldn't be read is shown as "?" and stored as unknown
             lines.append(("Wisps here: " + " · ".join(f"{v:,} {k}" if v is not None else f"? {k}"
@@ -240,7 +240,7 @@ class EncounterTracker:
         from .popup_render import TYPE_COLOURS
         head = f"≈ {desc['est']:,.0f} {p.colour} lifeforce"
         if desc.get("decks"):
-            head += f"  +  ≈ {desc['decks']:g} Stacked Decks"
+            head += f"  +  ≈ {desc['decks']:.0f} Stacked Decks"
         lines = [{"text": head + ("  (rough)" if desc["rough"] else ""), "big": True, "rgb": TYPE_COLOURS.get(p.colour)},
                  {"text": f"likely {desc['lo']:,.0f}–{desc['hi']:,.0f}  ·  {desc['vs_average'] * 100:+.0f}% vs an average "
                           f"{p.colour} plant" + (f"  ·  worth ≈ {desc['value']:,.0f}c" if desc.get("value") else ""),

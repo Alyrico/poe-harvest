@@ -293,8 +293,13 @@ class App:
         return summary
 
     def stamp_missing_atlas(self, value):
-        """Plants saved before Atlas Drops was set get the value you give (Settings, first start)."""
+        """Plants saved before Atlas Drops was set get the value you give (Settings, first start).
+        Normal (white) plants only come from white-map baseline runs with an empty atlas, so those
+        get 0% Atlas Drops, 0% tree lifeforce and 'white map' instead."""
         with self.busy:
+            self.con.execute("UPDATE encounters SET atlas_drops = 0, tree_lifeforce = COALESCE(tree_lifeforce, 0), "
+                             "white_map = COALESCE(white_map, 1) "
+                             "WHERE atlas_drops IS NULL AND kind = 'flora' AND rarity = 'normal'")
             self.con.execute("UPDATE encounters SET atlas_drops = ? WHERE atlas_drops IS NULL AND kind != ''", (value,))
             self.con.commit()
             self.estimator.refit()

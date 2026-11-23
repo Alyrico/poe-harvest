@@ -224,6 +224,14 @@ def parse_tooltip(reading) -> ParsedTooltip:
     base_norm = normalise(reading.base)
     base, colour = "", None
     if reading.kind == "flora":
+        if not base_norm:
+            # a normal or magic plant has one header line, and the base is in it ("Vivid Roots")
+            words = normalise(reading.name).split()
+            pairs = [" ".join(words[i:i + 2]) for i in range(max(len(words) - 1, 1))]
+            r, base_norm = max(((SequenceMatcher(None, p, x).ratio(), p) for p in pairs for x in BASES),
+                               default=(0, ""))
+            if reading.rarity == "normal":
+                name = base_norm.title()
         r, b = max((SequenceMatcher(None, base_norm, x).ratio(), x) for x in BASES)
         if r > 0.6:
             base = b.title()

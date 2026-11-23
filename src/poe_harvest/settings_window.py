@@ -111,10 +111,15 @@ class SettingsWindow:
         if n_missing:
             fr = ttk.Frame(g)
             fr.grid(row=r, column=0, columnspan=3, sticky="w", **PAD)
-            ttk.Label(fr, text=f"{n_missing} plants saved earlier have no Atlas Drops %. Give them:").pack(side="left")
+            top = ttk.Frame(fr)
+            top.pack(anchor="w")
+            ttk.Label(top, text=f"{n_missing} plants saved earlier have no Atlas Drops %. Give them:").pack(side="left")
             self.v["atlas_old"] = tk.StringVar(value=self.v["atlas"].get() or "0")
-            ttk.Spinbox(fr, from_=0, to=500, width=6, textvariable=self.v["atlas_old"]).pack(side="left", padx=6)
-            ttk.Button(fr, text="Apply", command=lambda: self._stamp_atlas(fr)).pack(side="left")
+            ttk.Spinbox(top, from_=0, to=500, width=6, textvariable=self.v["atlas_old"]).pack(side="left", padx=6)
+            ttk.Button(top, text="Apply", command=lambda: self._stamp_atlas(fr)).pack(side="left")
+            ttk.Label(fr, style="Hint.TLabel", wraplength=520, justify="left", text=(
+                "White (normal) plants from white-map runs get 0%, no tree lifeforce and \"white map\" "
+                "instead.")).pack(anchor="w")
             r += 1
         self.v["rich_soil"] = tk.BooleanVar(value=s.get("rich_soil") is not False)
         ttk.Checkbutton(g, text="Rich Soil is allocated on my atlas (Sacred Flora mods 50% stronger)",
@@ -134,13 +139,14 @@ class SettingsWindow:
                         variable=self.v["white"]).grid(row=r, column=0, columnspan=3, sticky="w", **PAD)
         r += 1
         ttk.Label(g, text="Tier 3 fauna per plant").grid(row=r, column=0, sticky="w", **PAD)
-        self.v["t3"] = tk.StringVar(value="" if s.get("t3_base") is None else str(s.get("t3_base")))
-        ttk.Spinbox(g, from_=0, to=50, increment=1, width=8, textvariable=self.v["t3"]).grid(
+        self.v["t3"] = tk.StringVar(value="" if s.get("t3_base") is None else f"{float(s.get('t3_base')):g}")
+        ttk.Spinbox(g, from_=0, to=50, increment=0.5, width=8, textvariable=self.v["t3"]).grid(
             row=r, column=1, sticky="w", **PAD)
         r += 1
         ttk.Label(g, style="Hint.TLabel", wraplength=520, justify="left", text=(
             "How many Tier 3 Sacred Fauna a plant spawns without a \"+ Rare Tier 3\" mod. Used to predict "
-            "Stacked Decks from the deck mod. Leave empty until you've counted.")).grid(
+            "Stacked Decks from the deck mod. The Tier 3 chance nodes make it vary, so count a few plants and "
+            "enter the average (e.g. 4.5). Leave empty until you've counted.")).grid(
             row=r, column=0, columnspan=3, sticky="w", padx=10)
         r += 1
         ttk.Label(g, text="Path of Exile folder").grid(row=r, column=0, sticky="w", **PAD)
@@ -401,7 +407,7 @@ class SettingsWindow:
             keep = int(self.v["keep"].get() or 0)
             tree = float(self.v["tree"].get().strip() or 0)
             t3_txt = self.v["t3"].get().strip()
-            t3 = int(float(t3_txt)) if t3_txt else None
+            t3 = float(t3_txt) if t3_txt else None           # an average over a few plants, e.g. 4.5
             if atlas is not None and not 0 <= atlas <= 1000:
                 raise ValueError("Atlas Drops should be between 0 and 1000")
             if not 0 <= tree <= 1000:
