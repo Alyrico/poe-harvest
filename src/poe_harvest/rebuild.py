@@ -18,7 +18,8 @@ from . import db as dblib, importer
 log = logging.getLogger(__name__)
 
 # only known at the time, can't be re-read from a screenshot
-KEEP = ("price", "est", "est_lo", "est_hi", "est_first", "atlas_drops")
+KEEP = ("price", "est", "est_lo", "est_hi", "est_first", "atlas_drops", "tree_lifeforce", "white_map",
+        "area_level")
 
 
 def carry_over(con, backup_path):

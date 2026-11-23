@@ -22,7 +22,8 @@ import numpy as np
 from . import mods, popup_render, reader, tracker_core, win, zones
 
 log = logging.getLogger(__name__)
-LOG_FIELDS = ["time", "key", "file", "area", "left", "top", "width", "height", "cursor_x", "cursor_y", "atlas"]
+LOG_FIELDS = ["time", "key", "file", "area", "left", "top", "width", "height", "cursor_x", "cursor_y",
+              "atlas", "tree", "white", "level"]
 
 
 def save_png(path, img):
@@ -104,7 +105,8 @@ class Capturer:
         crop_path = os.path.join(self.settings.reads_dir, f"{when:%Y-%m-%d}", stamp + ".png")
         keep_full = bool(self.settings["save_screenshots"])
         full_name = stamp + ".png" if keep_full else ""
-        atlas = self.settings.get("atlas_drops")
+        cond = {"atlas": self.settings.get("atlas_drops"), "tree": self.settings.get("tree_lifeforce") or 0,
+                "white": bool(self.settings.get("white_map")), "level": self.zones.level}
         t0 = time.time()
 
         if key == "node":
@@ -117,7 +119,7 @@ class Capturer:
                 return                               # nothing to read: stay silent
             parsed = mods.parse_tooltip(tt)
             box = (tt.box[0], tt.box[1], tt.box[2], tt.bottom)
-            ev = tracker_core.NodeEvent(when, area, seed, parsed, res["wisps"], box, full_name, crop_path, atlas)
+            ev = tracker_core.NodeEvent(when, area, seed, parsed, res["wisps"], box, full_name, crop_path, cond)
             out = self.tracker.node(ev)
             crop = img[box[1]:box[3] + 12, max(0, box[0]):box[2]]
         else:
@@ -159,4 +161,5 @@ class Capturer:
                                         "file": full_name, "area": area or "", "left": region["left"],
                                         "top": region["top"], "width": region["width"], "height": region["height"],
                                         "cursor_x": cur[0], "cursor_y": cur[1],
-                                        "atlas": "" if atlas is None else atlas})
+                                        **{k: ("" if v is None else int(v) if isinstance(v, bool) else v)
+                                           for k, v in cond.items()}})

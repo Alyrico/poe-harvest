@@ -33,6 +33,9 @@ DEFAULTS = {
     "data_dir": "",                 # "" = Documents\PoE Harvest
     "screenshots_dir": "",          # "" = <data folder>\screenshots
     "atlas_drops": None,            # the map's Atlas Drops %; asked on first start
+    "tree_lifeforce": 0,            # % increased lifeforce quantity from atlas passives (Harvest nodes)
+    "white_map": False,             # running white maps (no map mods) - e.g. a baseline test
+    "t3_base": None,                # Tier 3 Sacred Fauna per plant without "additional Rare Tier 3" (counted)
     "hotkeys": {"node": NUMPAD_1, "result": NUMPAD_3},
     "poe_log": "",                  # "" = find Client.txt automatically (standalone or Steam)
     "rich_soil": None,              # Rich Soil allocated (mods x1.5); asked on first start

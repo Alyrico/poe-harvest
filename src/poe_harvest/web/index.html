@@ -145,8 +145,8 @@ input:disabled { opacity: .5; }
       <div id="stripTable" hidden></div>
     </div>
     <div class="two">
-      <div class="card"><h2>Best mods</h2><p class="sub">Most extra lifeforce vs an average mod in the same slot.</p><ul class="ranklist" id="bestMods"></ul></div>
-      <div class="card"><h2>Worst mods</h2><p class="sub">Least lifeforce vs an average mod in the same slot.</p><ul class="ranklist" id="worstMods"></ul></div>
+      <div class="card"><h2>Best mods</h2><p class="sub">Most extra lifeforce vs no mod.</p><ul class="ranklist" id="bestMods"></ul></div>
+      <div class="card"><h2>Weakest lifeforce mods</h2><p class="sub">Least extra lifeforce. Mods with no effect at all aren't listed.</p><ul class="ranklist" id="worstMods"></ul></div>
     </div>
   </section>
 
@@ -167,7 +167,8 @@ input:disabled { opacity: .5; }
       <h2>Without the model: lifeforce with vs without each mod</h2>
       <p class="sub">The raw comparison from phase 3, for checking: plants <b>with</b> a mod against plants <b>without</b> it,
         each against its type's average. Every plant has four mods, so a mod can look good here just because it often
-        comes with a good one - the chart above separates them.</p>
+        comes with a good one - the chart above separates them. Mods with no lifeforce effect show up here too: a plant
+        with one has one lifeforce mod fewer, so they look worse than nothing even though they take nothing away.</p>
       <p class="sub" id="effectSub"></p>
       <div class="legend"><span><svg width="14" height="10"><rect width="14" height="10" rx="2" fill="var(--pos)"/></svg>more lifeforce</span>
         <span><svg width="14" height="10"><rect width="14" height="10" rx="2" fill="var(--neg)"/></svg>less lifeforce</span>
@@ -204,12 +205,16 @@ input:disabled { opacity: .5; }
       <button class="tablelink" data-table="accTable">Show as a table</button>
       <div id="accTable" hidden></div>
     </div>
-    <div class="note">How the estimate works: lifeforce = a typical amount for the plant type × an effect for each mod ×
-      a yellow-wisp effect. It's fitted on your plants with each effect pulled gently towards zero, so a mod seen a few
-      times can't get a wild number. Effects are measured against an <b>average mod</b>, because a rare plant always has
-      four: what matters is whether a mod is better or worse than what would have been in its place.
-      Reroll advice: every roll you've read is a sample of what a fresh roll is worth; the popup says Reroll while the
-      expected gain from rerolling (at poe.ninja's price) is more than the chaos it costs.</div>
+    <div class="note">How the estimate works: lifeforce = a base amount for the plant type × an effect for each lifeforce
+      mod × a yellow-wisp effect × the map setup (Atlas Drops %, your atlas tree's lifeforce quantity, white map or not).
+      It's fitted on your plants with each effect pulled gently towards zero, so a mod seen a few times can't get a wild
+      number. Effects are measured against <b>no mod</b>: mods that can't change lifeforce (experience, rarity, wisps
+      released, monsters affected by wisps, fully linked, max sockets and the Tier 3 item lines) count as nothing, so a
+      plant with only those mods drops the base amount.
+      Stacked Decks: the Tier 3 deck line is turned into a deck count (decks per Tier 3 fauna × how many Tier 3 fauna,
+      doubled by Duplicated) once you set the Tier 3 count in Settings, and valued at poe.ninja's price.
+      Reroll advice: every roll you've read is a sample of what a fresh roll is worth, lifeforce and decks together; the
+      popup says Reroll while the expected gain from rerolling is more than the chaos it costs.</div>
   </section>
 
   <!-- ================= REROLLS ================= -->
@@ -288,9 +293,9 @@ const SHORT = {
   extra_rare_t3: "+Rare T3", extra_magic_t2: "+Magic T2", wisps_on_fauna: "Wisps on fauna",
   wisp_monsters_after: "Wisp monsters after", wisps_released: "Wisps released", all_colours: "All colours",
   items_duplicated: "Duplicated", items_fully_linked: "Fully linked", items_max_sockets: "Max sockets",
-  item_reward: "Item reward line",
+  "reward:Stacked Deck": "Stacked Decks", "reward:Thread": "Threads", "reward:Currency Items": "Currency", "reward:Unique Items": "Uniques",
 };
-const WORDS = { item_reward: "Any item-reward line (Tier 3 drop: Stacked Deck / Thread / Currency / Uniques, fully linked, max sockets)" };
+const WORDS = {};
 const ICON_LABEL = { good: "✔ raises lifeforce", bad: "✘ lowers lifeforce", neutral: "~ no clear effect" };
 function iconSvg(kind, size = 14) {
   // the popup's icons: shape carries the meaning, colour backs it up
@@ -386,7 +391,9 @@ async function load() {
   DATA = await r.json();
   prepare();
   renderAll();
-  $("#updated").textContent = `v${DATA.version || "?"} · Atlas Drops ${DATA.atlas_drops != null ? DATA.atlas_drops + "%" : "not set"} · updated ` +
+  const su = DATA.setup || {};
+  $("#updated").textContent = `v${DATA.version || "?"} · Atlas Drops ${su.atlas != null ? su.atlas + "%" : "not set"}` +
+    (su.tree ? ` · tree +${su.tree}%` : "") + (su.white ? " · white map" : "") + " · updated " +
     new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 function prepare() {
@@ -565,28 +572,41 @@ function renderModel() {
   const M = DATA.model;
   $("#iconLegend").innerHTML = ["good", "bad", "neutral"].map(k => `${iconSvg(k)} ${ICON_LABEL[k].slice(2)}`).join(" &nbsp; ");
   if (!M || !M.fitted) { $("#modelSub").textContent = ""; host.innerHTML = `<p class="empty">The estimate needs about ${M ? M.show_from : 30} completed plants.</p>`; return; }
+  const su = DATA.setup || {};
   $("#modelSub").textContent = (M.mode === "starter" ? `Starter estimates: the author's ${M.n_starter} plants, adjusted by your ${M.n}. ` : `From ${M.n} plants. `) +
-    `Each mod at a typical roll, against an average mod in its place - a plant with four` +
-    ` average mods is the "typical" plant (${TYPES.map(t => `${t} ${fmt(Math.round(M.typical[t]))}`).join(", ")}` +
-    `${DATA.atlas_drops != null ? ` at ${DATA.atlas_drops}% Atlas Drops` : ""}).` +
-    ` Mods seen on fewer than 3 plants are greyed out.` + (M.rough ? ` Rough until ${M.rough_until} plants.` : "") +
-    (M.atlas_effect ? ` Atlas Drops ${DATA.atlas_drops}%: ×${(1 + M.atlas_effect[0]).toFixed(2)} vs 0%` +
-      (M.atlas_levels > 1 ? ` (measured from ${M.atlas_levels} different Atlas Drops values).` : ` (assumed a straight-line increase until you log plants at a different %).`) : "");
+    `Each lifeforce mod at a typical roll, against no mod. A plant with no lifeforce mods drops about ` +
+    `${TYPES.map(t => `${fmt(Math.round(M.base[t]))} ${t}`).join(", ")} at your setup` +
+    ` (Atlas Drops ${su.atlas != null ? su.atlas + "%" : "not set"}${su.tree ? `, tree +${su.tree}%` : ""}${su.white ? ", white map" : ""}).` +
+    ` Mods seen on fewer than 3 plants are greyed out.` + (M.rough ? ` Rough until ${M.rough_until} plants.` : "");
   const eff = M.effects.filter(e => e.n > 0).sort((a, b) => b.effect - a.effect);
   const rows = eff.map(e => ({ label: modName(e.id), n: e.n, eff: e.effect, lo: e.lo, hi: e.hi, few: e.n < 3, icon: e.icon,
     tip: `<b>${esc(modWording(e.id))}</b>${e.typical_value ? ` <span class="t2">at ${fmt(Math.round(e.typical_value))}</span>` : ""}<br>` +
-         `${pct(e.effect)} vs an average mod <span class="t2">(likely ${pct(e.lo)} to ${pct(e.hi)})</span>` +
+         `${pct(e.effect)} vs no mod <span class="t2">(likely ${pct(e.lo)} to ${pct(e.hi)})</span>` +
          (e.per_step != null ? `<br>${stepText(e)}` : "") + `<br><span class="t2">Seen on ${e.n} plant${e.n === 1 ? "" : "s"} · popup icon: ${ICON_LABEL[e.icon]}${e.icon !== e.auto_icon ? " (set by you)" : ""}</span>` }));
   const w = M.wisps.filter(x => x.yellow === 2000 || x.yellow === 4000);
   w.forEach((x, i) => rows.push({ label: `Yellow wisps ${fmt(x.yellow)}`, n: i === 0 ? M.has_yellow : null, eff: x.effect, lo: x.lo, hi: x.hi,
     few: M.has_yellow < 3, icon: x.icon, gapBefore: i === 0,
     tip: `<b>${fmt(x.yellow)} yellow (Vivid) wisps in the map</b><br>${pct(x.effect)} vs no yellow wisps <span class="t2">(likely ${pct(x.lo)} to ${pct(x.hi)})</span><br><span class="t2">${M.has_yellow} plants were in maps with yellow wisps</span>` }));
-  drawDiverging(host, rows, { zero: "average mod", aria: "Each mod's effect on lifeforce" });
+  drawDiverging(host, rows, { zero: "no mod", aria: "Each lifeforce mod's effect on lifeforce" });
   const unseen = M.effects.filter(e => !e.n).map(e => modName(e.id));
   if (unseen.length) host.insertAdjacentHTML("beforeend", `<p class="muted">Not seen yet: ${unseen.join(", ")}.</p>`);
+  host.insertAdjacentHTML("beforeend", `<p class="muted">No effect on lifeforce (counted as nothing): ` +
+    `${(M.no_effect || []).map(e => esc(modName(e.id)) + (e.n ? ` <span class="t2">(${e.n})</span>` : "")).join(", ")}.</p>` + setupText(M));
   $("#modelTable").innerHTML = `<table><thead><tr><th>Mod</th><th class="num">Plants</th><th class="num">Effect at a typical roll</th><th class="num">Likely range</th><th class="num">Per step</th><th>Popup icon</th></tr></thead><tbody>` +
     eff.map(e => `<tr><td>${esc(modWording(e.id))}</td><td class="num">${e.n}</td><td class="num">${pct(e.effect)}</td><td class="num">${pct(e.lo)} to ${pct(e.hi)}</td><td class="num">${stepText(e)}</td><td>${iconSvg(e.icon)} ${ICON_LABEL[e.icon].slice(2)}</td></tr>`).join("") +
     M.wisps.map(x => `<tr><td>${fmt(x.yellow)} yellow wisps in the map</td><td class="num"></td><td class="num">${pct(x.effect)}</td><td class="num">${pct(x.lo)} to ${pct(x.hi)}</td><td></td><td>${iconSvg(x.icon)} ${ICON_LABEL[x.icon].slice(2)}</td></tr>`).join("") + "</tbody></table>";
+}
+function setupText(M) {
+  // what the map setup does, and whether it's measured yet or still the starting assumption
+  const C = M.conditions || {}, su = DATA.setup || {}, parts = [];
+  const r = c => `×${(1 + c[0]).toFixed(2)} <span class="t2">(likely ×${(1 + c[1]).toFixed(2)}–${(1 + c[2]).toFixed(2)})</span>`;
+  if (C.atlas_drops) parts.push(`Atlas Drops ${su.atlas}%: ${r(C.atlas_drops)} vs 0% - ` +
+    (M.atlas_levels > 1 ? `measured from ${M.atlas_levels} different values` : "a straight-line increase assumed until you log plants at another %"));
+  if (C.tree_lifeforce) parts.push(`Atlas tree +${su.tree}% lifeforce: ${r(C.tree_lifeforce)} - ` +
+    (M.tree_levels > 1 ? `measured from ${M.tree_levels} different values` : "assumed until you log plants at another tree %"));
+  if (C.white_map) parts.push(`White map: ${r(C.white_map)} vs a map with mods - ` +
+    (M.white_plants ? `from ${M.white_plants} plant${M.white_plants === 1 ? "" : "s"} in white maps` : "no white-map plants yet"));
+  return parts.length ? `<p class="muted">Map setup: ${parts.join(" · ")}.</p>` : "";
 }
 function renderRanks() {
   const M = DATA.model;
@@ -718,7 +738,8 @@ function renderRerolls() {
   renderRerollChart(priced, byId);
   if (!R.length) { $("#rerollTable").innerHTML = '<p class="empty">No rerolled plants with a result yet.</p>'; return; }
   const rows = R.map(r => { const e = byId[r.id];
-    const rollsHtml = r.rolls.map(x => `${esc(x.name || "?")}${x.est != null ? ` <b>${fmt(Math.round(x.est))}</b>` : ' <span class="muted">(not read cleanly)</span>'}`).join(" → ");
+    const rollsHtml = r.rolls.map(x => `${esc(x.name || "?")}${x.est != null ? ` <b>${fmt(Math.round(x.est))}</b>` : ' <span class="muted">(not read cleanly)</span>'}` +
+      (x.decks ? ` <span class="muted">+ ${fmt(x.decks)} decks</span>` : "")).join(" → ");
     return `<tr class="clickable" data-id="${r.id}">
       <td class="when">${esc((e.node_time || "").replace("T", " ").slice(5, 16))}</td><td>${esc(e.map)}</td>
       <td>${typeMark(r.type)}${rollsHtml}${r.reads_missing ? ' <span class="muted">· not every roll was read</span>' : ""}</td>
@@ -732,7 +753,9 @@ function renderRerolls() {
   $("#rerollTable").innerHTML = `<table><thead><tr><th>When</th><th>Map</th><th>Rolls, with today's estimate</th><th class="num">Spent</th>
     <th class="num">First roll est.</th><th class="num">Dropped</th><th class="num">Extra</th><th class="num">Worth</th><th class="num">Net</th><th class="num">Net without luck</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><td colspan="3"><b>Total</b></td><td class="num"><b>${spent}c</b></td><td></td><td></td><td></td><td class="num"><b>${priced.length ? chaosText(worth) : ""}</b></td><td class="num"><b>${priced.length ? chaosText(net) : ""}</b></td><td class="num muted">${expPriced.length ? chaosText(expNet) : ""}</td></tr></tfoot></table>` +
-    (R.length < 10 ? `<p class="muted">With ${R.length} rerolled plant${R.length === 1 ? "" : "s"} the total is mostly luck - the "without luck" column settles sooner.</p>` : "");
+    (R.length < 10 ? `<p class="muted">With ${R.length} rerolled plant${R.length === 1 ? "" : "s"} the total is mostly luck - the "without luck" column settles sooner.</p>` : "") +
+    `<p class="muted">"Net without luck" includes the change in expected Stacked Decks between the first and last roll` +
+    `${(DATA.setup || {}).t3_base == null ? " once you set the Tier 3 count in Settings" : ""}. The other columns count lifeforce only, because dropped decks aren't read.</p>`;
   wireRows($("#rerollTable"));
 }
 function renderRerollChart(R, byId) {
@@ -776,8 +799,9 @@ function renderPrices() {
   if (!Object.keys(pr).length) { $("#priceTable").innerHTML = `<p class="empty">No prices yet${P.error ? ` (${esc(P.error)})` : " - fetching from poe.ninja"}. The popup leaves out the reroll advice until they arrive.</p>`; return; }
   $("#priceTable").innerHTML = `<table><thead><tr><th>Lifeforce</th><th class="num">Chaos each</th><th class="num">Per chaos</th><th class="num">One reroll costs</th></tr></thead><tbody>` +
     ["Wild", "Vivid", "Primal", "Sacred"].filter(c => pr[c]).map(c => `<tr><td>${c === "Sacred" ? "" : typeMark(c)}${c}</td><td class="num">${pr[c] < 1 ? pr[c].toFixed(4) : pr[c].toFixed(2)}</td><td class="num">${pr[c] < 1 ? fmt(Math.round(1 / pr[c])) : (1 / pr[c]).toFixed(3)}</td><td class="num">${c === "Sacred" ? "" : "≈ " + fmt(Math.round(1 / pr[c])) + " lifeforce"}</td></tr>`).join("") +
+    (pr["Stacked Deck"] ? `<tr><td>Stacked Deck</td><td class="num">${pr["Stacked Deck"].toFixed(2)}</td><td class="num">${(1 / pr["Stacked Deck"]).toFixed(3)}</td><td></td></tr>` : "") +
     `</tbody></table><p class="muted">League ${esc(P.league || "?")} · updated ${esc(P.fetched || "?")}${P.error ? ` · last try failed: ${esc(P.error)}` : ""}. ` +
-    `To use another league, put <code>{"league": "Hardcore Covens"}</code> in <code>data\\settings.json</code>.</p>`;
+    `To use another league, set it in Settings (tray icon → Settings).</p>`;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -801,7 +825,7 @@ function encRows(list) {
       <td>${e.kind ? typeMark(e.kind === "specimen" ? "Specimen" : e.type) : ""}${esc(e.plant || "—")}</td>
       <td>${modChips(e)}</td>
       <td class="num">${e.stacks.length ? e.stacks.map(s => fmt(s[0]) + (e.stacks.length > 1 || s[1] !== e.type ? ` <span class="muted">${esc(s[1] || "")}</span>` : "")).join(" + ") : "—"}</td>
-      <td class="num">${e.est != null ? fmt(Math.round(e.est)) : ""}</td>
+      <td class="num">${e.est != null ? fmt(Math.round(e.est)) : ""}${e.decks ? ` <span class="muted">+ ${fmt(e.decks)} decks</span>` : ""}</td>
       <td class="num">${e.rel != null && e.status === "ok" ? pct(e.rel - 1) : ""}</td>
       <td class="num">${e.rerolls || ""}</td>
       <td>${statusHtml(e.status)}</td></tr>`).join("") + "</tbody></table>";
@@ -864,7 +888,10 @@ function openDrawer(id, keepScroll = false) {
     ${e.kind ? `<h4>Plant type</h4><select id="dType">${TYPES.map(t => `<option${t === e.type ? " selected" : ""}>${t}</option>`).join("")}</select>` : ""}
     ${e.kind === "flora" ? `<h4>Mods</h4><div id="dMods">${realMods.map(([k, v]) => modRow(k, v)).join("")}</div><button class="btn" id="dAddMod">+ mod</button>
       <h4>Rewards</h4><div id="dRewards">${Object.entries(e.rewards).filter(([k]) => !DATA.modInfo[k]).map(([k, v]) => rewardRow(k, v)).join("")}</div><button class="btn" id="dAddReward">+ reward</button>` : ""}
-    ${e.kind === "flora" ? `<h4>Atlas Drops %</h4><div class="editrow"><input type="number" id="dAtlas" min="0" step="1" value="${e.atlas ?? ""}" style="width:90px"><span class="muted">the map's Atlas Drops when this plant was read</span></div>` : ""}
+    ${e.kind === "flora" ? `<h4>Map setup</h4>
+      <div class="editrow"><input type="number" id="dAtlas" min="0" step="1" value="${e.atlas ?? ""}" placeholder="${(DATA.setup || {}).atlas ?? ""}" title="Empty = the value in Settings" style="width:90px"><span class="muted">Atlas Drops % when this plant was read</span></div>
+      <div class="editrow"><input type="number" id="dTree" min="0" step="1" value="${e.tree ?? ""}" placeholder="${(DATA.setup || {}).tree ?? 0}" title="Empty = the value in Settings" style="width:90px"><span class="muted">atlas tree lifeforce quantity %</span></div>
+      <div class="editrow"><label><input type="checkbox" id="dWhite"${e.white ? " checked" : ""}> white map (no map mods)</label>${e.level ? `<span class="muted">· map level ${e.level}</span>` : ""}</div>` : ""}
     ${e.kind === "flora" ? `<h4>Rerolls</h4><div class="editrow"><input type="number" id="dRerolls" min="0" value="${e.rerolls}" style="width:90px"><span class="muted">1 chaos each · fix this if you rerolled without pressing Numpad 1</span></div>` : ""}
     <h4>Lifeforce</h4><div id="dStacks">${(e.stacks.length ? e.stacks : [[null, e.type || "Wild"]]).map(s => stackRow(s[0], s[1])).join("")}</div><button class="btn" id="dAddStack">+ stack</button>
     ${!e.kind ? '<p class="muted">Without a plant read there are no mods to count this against, so it can only be excluded.</p>' : ""}
@@ -898,6 +925,8 @@ function collect(e) {
   }
   if ($("#dRerolls", d)) body.rerolls = $("#dRerolls", d).value;
   if ($("#dAtlas", d) && $("#dAtlas", d).value !== "") body.atlas = $("#dAtlas", d).value;
+  if ($("#dTree", d) && $("#dTree", d).value !== "") body.tree = $("#dTree", d).value;
+  if ($("#dWhite", d)) body.white = $("#dWhite", d).checked;
   body.stacks = [...d.querySelectorAll('#dStacks .editrow')].map(r => [$("input", r).value === "" ? null : +$("input", r).value, $("select", r).value]).filter(s => s[0] != null);
   return body;
 }
@@ -921,7 +950,10 @@ function renderIcons() {
   const seen = {}; for (const e of DATA.flora) for (const k of [...Object.keys(e.mods), ...Object.keys(e.rewards)]) seen[k] = (seen[k] || 0) + 1;
   const opts = [["auto", "Auto (from the data)"], ["good", "✔ always good"], ["bad", "✘ always bad"], ["neutral", "~ always neutral"]];
   const auto = Object.fromEntries(((DATA.model && DATA.model.effects) || []).map(e => [e.id, e]));
-  const autoCell = id => { const e = auto[id] || (DATA.modInfo[id] && DATA.modInfo[id].kind === "reward" ? auto.item_reward : null);
+  const none = new Set(((DATA.model && DATA.model.no_effect) || []).map(e => e.id));
+  const autoCell = id => { const e = auto[id];
+    if (id === "reward:Stacked Deck") return `${iconSvg("good")} valued as decks`;
+    if (none.has(id)) return `${iconSvg("neutral")} no lifeforce effect`;
     return e && e.n ? `${iconSvg(e.auto_icon)} ${pct(e.effect)}` : '<span class="muted">not enough data</span>'; };
   $("#iconTable").innerHTML = `<table><thead><tr><th>Mod</th><th>Type</th><th class="num">Possible values</th><th class="num">Seen on</th><th>From the data</th><th>Icon in the popup</th></tr></thead><tbody>` +
     DATA.mods.map(m => `<tr><td>${esc(m.wording)}</td><td class="muted">${m.affix}${m.kind === "reward" ? " · item reward" : ""}</td>

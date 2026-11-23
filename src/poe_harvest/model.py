@@ -1,22 +1,30 @@
 """
 Lifeforce estimate.
 
-    lifeforce = typical amount for the plant type  x  an effect for each mod  x  the yellow-wisp effect
-                x  (1 + Atlas Drops %)
+    lifeforce = base amount for the plant type (a plant with no lifeforce mods)
+                x  an effect for each lifeforce mod
+                x  the yellow-wisp effect
+                x  (1 + Atlas Drops %)  x  (1 + lifeforce quantity from atlas passives %)
+                x  a white-map effect (maps without map mods)
 
-fitted on the log scale (effects multiply). Every effect is pulled gently towards a starting
-value so a mod seen on only a few plants can't get a wild number:
+fitted on the log scale (effects multiply).
 
+Mods that do nothing for lifeforce (agreed 22 Nov from game knowledge, and the data agreed): more
+experience, item rarity, Wildwood wisps released, monsters affected by wisps, and the item-reward
+lines (Stacked Decks, Threads, Currency, Uniques, fully linked, max sockets) are fixed at no effect:
+they're empty slots as far as lifeforce goes. So a plant's effects are measured against a plant
+with no lifeforce mods, and every plant with no-effect mods helps pin that base down. The other
+mods are decided by the data.
+
+Every effect is pulled gently towards a starting value so a mod seen on only a few plants can't get
+a wild number:
   * "own" mode (enough plants of your own): ridge regression towards zero - except Duplicated
-    (towards x2: it drops every stack twice) and Atlas Drops (towards a straight-line increase).
-    How strong the pull is, whether a mod's effect grows with its rolled value, and whether yellow
-    wisps help in a straight line or with diminishing returns are chosen by leave-one-out testing.
+    (towards x2: it drops every stack twice), Atlas Drops and atlas-passive quantity (towards a
+    straight-line increase) and white maps (towards no difference). How strong the pull is,
+    whether a mod's effect grows with its rolled value, and whether yellow wisps help in a straight
+    line or with diminishing returns are chosen by leave-one-out testing.
   * "starter" mode (new players): the author's fitted model is the starting point, and your own
-    plants move it - the type amounts quickly (every setup differs), the mod effects slowly.
-
-Effects are shown relative to an *average mod*: a rare plant always has 4 mods, so what matters is
-whether this mod is better or worse than whatever would have been in its place. The "typical"
-amount per type is a plant with 4 average mods and no yellow wisps, at your Atlas Drops %.
+    plants move it - the base amounts quickly (every setup differs), the mod effects slowly.
 
 Pure numpy; fitting 50-500 plants takes a few milliseconds.
 """
@@ -34,7 +42,6 @@ import numpy as np
 from . import mods as modlib
 
 TYPES = ("Wild", "Vivid", "Primal")
-SLOTS = 4                       # a rare plant: 2 prefixes + 2 suffixes
 Z80 = 1.2816                    # 80% range
 MEANINGFUL = 0.03               # an effect under 3% is shown as ~
 LAMBDAS = (0.3, 1, 3, 10, 30, 100)
@@ -42,16 +49,18 @@ MIN_PLANTS = 15                 # below this there's nothing to fit on your own 
 SHOW_FROM = 30                  # own-mode estimates need this many plants AND must beat the type average
 ROUGH_UNTIL = 100               # ...and are marked "rough" until here
 STARTER_UNTIL = 100             # "auto": starter estimates until you have this many plants of your own
-REWARD = "item_reward"          # all "Tier 3 drop additional ..." / linked / sockets lines share one effect
-ATLAS = "atlas_drops"
-# Known from how the game works: Duplicated drops every lifeforce stack twice. Atlas Drops: assumed to
-# raise lifeforce in a straight line (x1.82 at 82%) until there's data from different % to test it.
-PRIOR = {"items_duplicated": math.log(2), ATLAS: 1.0}
-ATLAS_PRIOR_SD = 0.25           # how sure we are of the straight line before testing it
 STARTER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "starter_model.json")
 
+# no effect on lifeforce (fixed at zero)
+NO_EFFECT = {"experience", "item_rarity", "wisps_released", "wisp_monsters_after",
+             "items_fully_linked", "items_max_sockets"}            # + every item-reward line
 MOD_IDS = [mid for mid, _, kind in modlib.MODS if kind == "mod"]
-REWARD_IDS = [mid for mid, _, kind in modlib.MODS if kind == "reward"]   # fully linked, max sockets
+LF_MODS = [mid for mid in MOD_IDS if mid not in NO_EFFECT]          # mods that may change lifeforce
+
+WISPS, ATLAS, TREE, WHITE = "yellow_wisps", "atlas_drops", "tree_lifeforce", "white_map"
+# Known or assumed from how the game works, until the data says otherwise:
+PRIOR = {"items_duplicated": math.log(2), ATLAS: 1.0, TREE: 1.0, WHITE: 0.0}
+PRIOR_SD = {ATLAS: 0.25, TREE: 0.25, WHITE: 0.5}      # how sure we are of those before testing them
 
 
 def typical_value(mid: str):
@@ -59,6 +68,10 @@ def typical_value(mid: str):
     player without Rich Soil (smaller numbers) gets proportionally smaller effects."""
     r = modlib.value_range(mid, effect=modlib.REFERENCE_EFFECT)
     return (r[0] + r[1]) / 2 if r else None
+
+
+def has_effect(mid: str) -> bool:
+    return mid in LF_MODS
 
 
 # ---------------------------------------------------------------------------------------------
@@ -84,7 +97,7 @@ def map_wisps(con) -> dict:
 
 def rolls(con) -> list[dict]:
     """Every distinct plant roll you've seen (first rolls and rerolls, read cleanly) - an unbiased
-    sample of what a fresh roll looks like, used for the reroll advice."""
+    sample of what a fresh roll looks like, used for the reroll advice. Rare plants only."""
     seen, out = set(), []
     for eid, parsed in con.execute("""SELECT r.encounter_id, r.parsed FROM reads r JOIN encounters e ON e.id = r.encounter_id
                                       WHERE r.key = 'node' AND r.ok = 1
@@ -93,7 +106,7 @@ def rolls(con) -> list[dict]:
             p = json.loads(parsed or "{}")
         except ValueError:
             continue
-        if p.get("type") not in TYPES or not p.get("mods"):
+        if p.get("type") not in TYPES or not p.get("mods") or p.get("rarity", "rare") != "rare":
             continue
         key = (eid, json.dumps(p["mods"], sort_keys=True), json.dumps(p.get("rewards", {}), sort_keys=True))
         if key in seen:
@@ -103,22 +116,30 @@ def rolls(con) -> list[dict]:
     return out
 
 
-def plants(con, only_ok=True, default_atlas=None) -> list[dict]:
-    """Completed flora encounters as plain dicts."""
+CONDITION_COLUMNS = {"atlas": "atlas_drops", "tree": "tree_lifeforce", "white": "white_map", "level": "area_level"}
+
+
+def plants(con, only_ok=True, defaults=None) -> list[dict]:
+    """Completed flora encounters as plain dicts. `defaults` fill in conditions that weren't recorded
+    (plants from before the app recorded them): {"atlas": 82, "tree": 0, "white": False}."""
+    defaults = defaults or {}
     wisps = map_wisps(con)
     where = "status = 'ok' AND kind = 'flora' AND lifeforce_total > 0" if only_ok else "kind = 'flora'"
     cols = {r[1] for r in con.execute("PRAGMA table_info(encounters)")}
-    atlas_col = "atlas_drops" if "atlas_drops" in cols else "NULL"
+    cond_sql = ", ".join(c if c in cols else "NULL" for c in CONDITION_COLUMNS.values())
     out = []
-    for e in con.execute(f"SELECT id, map_id, plant_type, lifeforce_total, rerolls, {atlas_col} FROM encounters "
+    for e in con.execute(f"SELECT id, map_id, plant_type, lifeforce_total, rerolls, {cond_sql} FROM encounters "
                          f"WHERE {where}"):
         if e[2] not in TYPES:
             continue
         mods = {r[0]: r[1] for r in con.execute("SELECT mod_id, value FROM encounter_mods WHERE encounter_id = ?", (e[0],))}
         rewards = {r[0]: r[1] for r in con.execute("SELECT item, count FROM encounter_rewards WHERE encounter_id = ?", (e[0],))}
-        out.append({"id": e[0], "map_id": e[1], "type": e[2], "lifeforce": e[3], "rerolls": e[4] or 0,
-                    "mods": mods, "rewards": rewards, "yellow": (wisps.get(e[1]) or {}).get("yellow"),
-                    "atlas": e[5] if e[5] is not None else default_atlas})
+        p = {"id": e[0], "map_id": e[1], "type": e[2], "lifeforce": e[3], "rerolls": e[4] or 0,
+             "mods": mods, "rewards": rewards, "yellow": (wisps.get(e[1]) or {}).get("yellow")}
+        for i, key in enumerate(CONDITION_COLUMNS):
+            v = e[5 + i]
+            p[key] = v if v is not None else defaults.get(key)
+        out.append(p)
     return out
 
 
@@ -139,43 +160,48 @@ def _wisp_feature(yellow, curve):
     return y if curve == "straight" else math.log1p(y)
 
 
-def atlas_feature(atlas) -> float:
-    return math.log1p((atlas or 0) / 100)
+def pct_feature(pct) -> float:
+    return math.log1p((pct or 0) / 100)
 
 
 def feature_names() -> list[str]:
-    return list(TYPES) + MOD_IDS + [REWARD, "yellow_wisps", ATLAS]
+    return list(TYPES) + LF_MODS + [WISPS, ATLAS, TREE, WHITE]
 
 
 K = len(TYPES)
-I_REWARD = K + len(MOD_IDS)
-I_WISP = I_REWARD + 1
-I_ATLAS = I_WISP + 1
-N_FEATURES = I_ATLAS + 1
+I_WISP = K + len(LF_MODS)
+I_ATLAS, I_TREE, I_WHITE = I_WISP + 1, I_WISP + 2, I_WISP + 3
+N_FEATURES = I_WHITE + 1
+CONDITIONS = (I_ATLAS, I_TREE, I_WHITE)
 
 
 def features(plant: dict, scaled: bool, curve: str) -> np.ndarray:
     x = np.zeros(N_FEATURES)
     x[TYPES.index(plant["type"])] = 1
-    for j, mid in enumerate(MOD_IDS):
+    for j, mid in enumerate(LF_MODS):
         if mid in plant["mods"]:
             v, t = plant["mods"][mid], typical_value(mid)
             x[K + j] = (v / t) if (scaled and v is not None and t) else 1.0
-    x[I_REWARD] = sum(1 for mid in plant["mods"] if mid in REWARD_IDS) + len(plant.get("rewards", {}))
     x[I_WISP] = _wisp_feature(plant.get("yellow"), curve)
-    x[I_ATLAS] = atlas_feature(plant.get("atlas"))
+    x[I_ATLAS] = pct_feature(plant.get("atlas"))
+    x[I_TREE] = pct_feature(plant.get("tree"))
+    x[I_WHITE] = 1.0 if plant.get("white") else 0.0
     return x
 
 
-def slot_count(plant: dict) -> int:
-    return len(plant["mods"]) + len(plant.get("rewards", {}))
-
-
-def mod_mask() -> np.ndarray:
-    """1 for the mod and item-reward features (the parts that make up "the average mod")."""
+def mods_mask() -> np.ndarray:
     m = np.zeros(N_FEATURES)
     m[K:I_WISP] = 1
     return m
+
+
+def condition_vector(cond: dict | None) -> np.ndarray:
+    cond = cond or {}
+    v = np.zeros(N_FEATURES)
+    v[I_ATLAS] = pct_feature(cond.get("atlas"))
+    v[I_TREE] = pct_feature(cond.get("tree"))
+    v[I_WHITE] = 1.0 if cond.get("white") else 0.0
+    return v
 
 
 # ---------------------------------------------------------------------------------------------
@@ -190,67 +216,65 @@ class Model:
     beta: np.ndarray
     cov: np.ndarray                         # covariance of beta
     sigma: float                            # spread of single plants around the estimate (log scale)
-    g: np.ndarray                           # average mod's contribution, as a linear combination of beta
     mode: str = "own"                       # "own" or "starter"
     n_starter: int = 0                      # plants behind the starter model (starter mode)
     loo_pred: dict = field(default_factory=dict)      # encounter id -> leave-one-out estimate
     loo_abs_err: float | None = None        # median |error| of leave-one-out estimates (fraction)
     base_abs_err: float | None = None       # same for "type average" (no mods)
     coverage: float | None = None           # share of plants inside their 80% range (leave-one-out)
-    has_yellow: int = 0                     # plants with yellow wisps in the data
-    atlas_levels: int = 0                   # different Atlas Drops values in your data
-
-    # ---- pieces for the popup / dashboard
-    def _idx(self, mid):
-        return K + MOD_IDS.index(mid)
+    counts: dict = field(default_factory=dict)   # plants with yellow wisps / white maps / Atlas levels...
 
     def _part(self, v):
         m, s = float(v @ self.beta), math.sqrt(max(float(v @ self.cov @ v), 0))
         return m, s
 
-    def typical(self, ptype: str, atlas=0) -> float:
-        """Typical lifeforce for a plant of this type with 4 average mods and no yellow wisps."""
-        return math.exp(self.beta[TYPES.index(ptype)] + SLOTS * float(self.g @ self.beta)
-                        + self.beta[I_ATLAS] * atlas_feature(atlas))
+    def _rng(self, v):
+        m, s = self._part(v)
+        return math.expm1(m), math.expm1(m - Z80 * s), math.expm1(m + Z80 * s)
+
+    def base(self, ptype: str, cond: dict | None = None) -> float:
+        """Lifeforce from a plant of this type with no lifeforce mods (and no yellow wisps)."""
+        v = condition_vector(cond)
+        v[TYPES.index(ptype)] = 1
+        return math.exp(float(v @ self.beta))
 
     def mod_effect(self, mid: str, value=None):
-        """(effect as a fraction, low, high) of this mod vs an average mod, 80% range.
-        Any id that isn't a lifeforce mod is an item-reward line (Stacked Deck, fully linked...)."""
+        """(effect, low, high) of this mod against no mod, 80% range; None if it has no effect."""
+        if mid not in LF_MODS:
+            return None
         v = np.zeros_like(self.beta)
-        if mid in MOD_IDS:
-            t = typical_value(mid)
-            v[self._idx(mid)] = (value / t) if (self.scaled and value is not None and t) else 1.0
-        else:
-            v[I_REWARD] = 1.0
-        m, s = self._part(v - self.g)
-        return math.expm1(m), math.expm1(m - Z80 * s), math.expm1(m + Z80 * s)
+        t = typical_value(mid)
+        v[K + LF_MODS.index(mid)] = (value / t) if (self.scaled and value is not None and t) else 1.0
+        return self._rng(v)
 
     def wisp_effect(self, yellow):
         v = np.zeros_like(self.beta)
         v[I_WISP] = _wisp_feature(yellow, self.curve)
-        m, s = self._part(v)
-        return math.expm1(m), math.expm1(m - Z80 * s), math.expm1(m + Z80 * s)
+        return self._rng(v)
 
-    def atlas_effect(self, atlas):
-        """Lifeforce at this Atlas Drops % compared with 0%."""
+    def condition_effect(self, which: str, value):
+        """Lifeforce at this Atlas Drops % / atlas-passive quantity % / white map, vs 0% / normal map."""
         v = np.zeros_like(self.beta)
-        v[I_ATLAS] = atlas_feature(atlas)
-        m, s = self._part(v)
-        return math.expm1(m), math.expm1(m - Z80 * s), math.expm1(m + Z80 * s)
+        if which == ATLAS:
+            v[I_ATLAS] = pct_feature(value)
+        elif which == TREE:
+            v[I_TREE] = pct_feature(value)
+        else:
+            v[I_WHITE] = 1.0 if value else 0.0
+        return self._rng(v)
 
     def per_step(self, mid: str):
         """(step, change in lifeforce per step of the mod's value) - e.g. (10, 0.04) = +4% per 10
         points. Only when the chosen model lets effects grow with the rolled value."""
         t, r = typical_value(mid), modlib.value_range(mid, effect=modlib.REFERENCE_EFFECT)
-        if not (self.scaled and t and mid in MOD_IDS):
+        if not (self.scaled and t and mid in LF_MODS):
             return None
         step = 1 if r[1] <= 20 else 10 if r[1] <= 400 else 1000
-        return step, math.expm1(self.beta[self._idx(mid)] * step / t)
+        return step, math.expm1(self.beta[K + LF_MODS.index(mid)] * step / t)
 
     def mod_part(self, plant: dict) -> float:
-        """log-scale effect of the plant's mods together, vs 4 average mods."""
-        x = features(plant, self.scaled, self.curve) * mod_mask()
-        return float(x @ self.beta) - SLOTS * float(self.g @ self.beta)
+        """log-scale effect of the plant's lifeforce mods together (0 = no lifeforce mods)."""
+        return float((features(plant, self.scaled, self.curve) * mods_mask()) @ self.beta)
 
     def estimate(self, plant: dict):
         """(estimate, low, high) for one plant: the typical outcome and an 80% range."""
@@ -278,18 +302,19 @@ class Model:
     def rough(self) -> bool:
         return self.n < ROUGH_UNTIL
 
-    def summary(self, atlas=0) -> dict:
+    def summary(self, cond=None) -> dict:
         return {"n": self.n, "mode": self.mode, "n_starter": self.n_starter, "scaled": self.scaled,
                 "curve": self.curve, "lambda": self.lam, "sigma": self.sigma,
                 "typical_error": self.loo_abs_err, "baseline_error": self.base_abs_err,
-                "coverage": self.coverage, "has_yellow": self.has_yellow, "atlas_levels": self.atlas_levels,
-                "atlas_coef": float(self.beta[I_ATLAS]),
-                "typical": {t: self.typical(t, atlas) for t in TYPES}}
+                "coverage": self.coverage, **self.counts,
+                "coef": {ATLAS: float(self.beta[I_ATLAS]), TREE: float(self.beta[I_TREE]),
+                         WHITE: float(self.beta[I_WHITE])},
+                "base": {t: self.base(t, cond) for t in TYPES}}
 
     def to_json(self, extra=None) -> dict:
         d = {"n": self.n, "scaled": self.scaled, "curve": self.curve, "lam": self.lam,
-             "beta": self.beta.tolist(), "cov": self.cov.tolist(), "sigma": self.sigma, "g": self.g.tolist(),
-             "features": feature_names()}
+             "beta": self.beta.tolist(), "cov": self.cov.tolist(), "sigma": self.sigma,
+             "features": feature_names(), "no_effect": sorted(NO_EFFECT)}
         d.update(extra or {})
         return d
 
@@ -316,6 +341,14 @@ def _clean(data):
     return [p for p in data if p["lifeforce"] and p["lifeforce"] > 0 and p["type"] in TYPES]
 
 
+def _counts(data):
+    return {"has_yellow": sum(1 for p in data if p.get("yellow")),
+            "white_plants": sum(1 for p in data if p.get("white")),
+            "atlas_levels": len({round(p.get("atlas") or 0) for p in data}),
+            "tree_levels": len({round(p.get("tree") or 0) for p in data}),
+            "no_lf_mod_plants": sum(1 for p in data if not any(m in LF_MODS for m in p["mods"]))}
+
+
 def fit(data: list[dict]) -> Model | None:
     """Your own plants only: fit every variant, keep the one with the best leave-one-out predictions."""
     data = _clean(data)
@@ -323,18 +356,20 @@ def fit(data: list[dict]) -> Model | None:
         return None
     y = np.log([p["lifeforce"] for p in data])
     names = feature_names()
-    penal = np.array([0.0] * K + [1.0] * (len(names) - K))
     prior = np.array([PRIOR.get(nm, 0.0) for nm in names])
     best = None
     for scaled in (True, False):
         for curve in ("straight", "diminishing"):
             X = np.array([features(p, scaled, curve) for p in data])
             for lam in LAMBDAS:
-                pen = penal.copy()
-                pen[I_ATLAS] = 0.06 / ATLAS_PRIOR_SD ** 2 / lam      # fixed strength, whatever lam is
-                A = X.T @ X + lam * np.diag(pen)
+                # penalty per feature: none for the base amounts, lam for mods and wisps, and a fixed
+                # strength (whatever lam is) for the conditions, from their prior sd
+                pen = np.array([0.0] * K + [lam] * (I_WISP + 1 - K) + [0.0] * len(CONDITIONS))
+                for i, nm in zip(CONDITIONS, (ATLAS, TREE, WHITE)):
+                    pen[i] = 0.06 / PRIOR_SD[nm] ** 2
+                A = X.T @ X + np.diag(pen)
                 A_inv = np.linalg.pinv(A)
-                beta = A_inv @ (X.T @ y + lam * pen * prior)
+                beta = A_inv @ (X.T @ y + pen * prior)
                 H = X @ A_inv @ X.T
                 resid = y - X @ beta
                 h = np.clip(np.diag(H), 0, 0.999)
@@ -346,14 +381,10 @@ def fit(data: list[dict]) -> Model | None:
     n = len(data)
     sigma2 = float(resid @ resid) / max(n - df, 1)
     cov = sigma2 * A_inv
-    slots = sum(slot_count(p) for p in data) or 1
-    g = (X * mod_mask()).sum(axis=0) / slots
     loo_log, err, base_err, coverage = _accuracy(data, X, y, loo, cov, sigma2)
-    return Model(n=n, scaled=scaled, curve=curve, lam=lam, beta=beta, cov=cov, sigma=math.sqrt(sigma2), g=g,
+    return Model(n=n, scaled=scaled, curve=curve, lam=lam, beta=beta, cov=cov, sigma=math.sqrt(sigma2),
                  loo_pred={p["id"]: float(math.exp(v)) for p, v in zip(data, loo_log)},
-                 loo_abs_err=err, base_abs_err=base_err, coverage=coverage,
-                 has_yellow=sum(1 for p in data if p.get("yellow")),
-                 atlas_levels=len({round(p.get("atlas") or 0) for p in data}))
+                 loo_abs_err=err, base_abs_err=base_err, coverage=coverage, counts=_counts(data))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -372,16 +403,17 @@ def load_starter(path: str = STARTER_PATH) -> dict | None:
 
 def fit_with_starter(data: list[dict], starter: dict) -> Model:
     """Bayesian update: the starter's effects (with their uncertainty, widened) are the prior,
-    your plants the evidence. The type amounts are allowed to move a lot (every player's atlas and
+    your plants the evidence. The base amounts are allowed to move a lot (every player's atlas and
     scarabs differ); the mod effects need more plants to move."""
     data = _clean(data)
     scaled, curve = starter["scaled"], starter["curve"]
     mu = np.array(starter["beta"])
     S = np.array(starter["cov"]) * 4.0                     # widened: other players differ
     for i in range(K):
-        S[i, i] += 0.3 ** 2                                 # type amounts: +-30% is quite possible
-    S[I_ATLAS, :] = S[:, I_ATLAS] = 0
-    S[I_ATLAS, I_ATLAS] = ATLAS_PRIOR_SD ** 2
+        S[i, i] += 0.3 ** 2                                 # base amounts: +-30% is quite possible
+    for i, nm in zip(CONDITIONS, (ATLAS, TREE, WHITE)):
+        S[i, :] = S[:, i] = 0
+        S[i, i] = PRIOR_SD[nm] ** 2
     P = np.linalg.pinv(S)
     n = len(data)
     sigma2 = starter["sigma"] ** 2
@@ -397,14 +429,8 @@ def fit_with_starter(data: list[dict], starter: dict) -> Model:
         if n >= SHOW_FROM:
             resid = y - X @ beta
             sigma2 = (10 * starter["sigma"] ** 2 + float(resid @ resid)) / (10 + n)
-    g = np.array(starter["g"])
-    if n >= SHOW_FROM:
-        slots = sum(slot_count(p) for p in data) or 1
-        g = (X * mod_mask()).sum(axis=0) / slots
     m = Model(n=n, scaled=scaled, curve=curve, lam=starter.get("lam", 0), beta=beta, cov=cov,
-              sigma=math.sqrt(sigma2), g=g, mode="starter", n_starter=starter.get("n", 0),
-              has_yellow=sum(1 for p in data if p.get("yellow")),
-              atlas_levels=len({round(p.get("atlas") or 0) for p in data}))
+              sigma=math.sqrt(sigma2), mode="starter", n_starter=starter.get("n", 0), counts=_counts(data))
     if n >= 10:
         H = X @ cov @ X.T / sigma2
         resid = y - X @ beta
@@ -414,10 +440,10 @@ def fit_with_starter(data: list[dict], starter: dict) -> Model:
     return m
 
 
-def choose(con, mode: str = "auto", default_atlas=None, starter: dict | None = None) -> Model | None:
+def choose(con, mode: str = "auto", defaults=None, starter: dict | None = None) -> Model | None:
     """The model the app uses. mode: "auto" (starter until you have enough plants of your own, and
     never on the database the starter came from), "on", "off"."""
-    data = plants(con, default_atlas=default_atlas)
+    data = plants(con, defaults=defaults)
     starter = starter if starter is not None else load_starter()
     use_starter = False
     if starter and mode == "on":
@@ -431,5 +457,20 @@ def choose(con, mode: str = "auto", default_atlas=None, starter: dict | None = N
     return fit(data)
 
 
-def fit_from_db(con, default_atlas=None) -> Model | None:
-    return fit(plants(con, default_atlas=default_atlas))
+# ---------------------------------------------------------------------------------------------
+# Stacked Decks (and other item rewards): predicted from the mods, never read from the screen
+# ---------------------------------------------------------------------------------------------
+def tier3_count(mods: dict, base_t3):
+    """Tier 3 Sacred Fauna the plant spawns: your counted base + "Spawns N additional Rare Tier 3"."""
+    if base_t3 is None:
+        return None
+    return base_t3 + (mods.get("extra_rare_t3") or 0)
+
+
+def reward_counts(plant: dict, base_t3) -> dict:
+    """Expected items per reward line, e.g. {"Stacked Deck": 18}. None for a count when the Tier 3
+    base hasn't been set. Duplicated doubles them."""
+    t3 = tier3_count(plant["mods"], base_t3)
+    dup = 2 if "items_duplicated" in plant["mods"] else 1
+    return {item: (None if t3 is None else per_t3 * t3 * dup) for item, per_t3 in plant.get("rewards", {}).items()
+            if item in modlib.KNOWN_REWARDS}

@@ -120,6 +120,29 @@ class SettingsWindow:
         ttk.Checkbutton(g, text="Rich Soil is allocated on my atlas (Sacred Flora mods 50% stronger)",
                         variable=self.v["rich_soil"]).grid(row=r, column=0, columnspan=3, sticky="w", **PAD)
         r += 1
+        ttk.Label(g, text="Atlas tree lifeforce %").grid(row=r, column=0, sticky="w", **PAD)
+        self.v["tree"] = tk.StringVar(value=f"{float(s.get('tree_lifeforce') or 0):g}")
+        ttk.Spinbox(g, from_=0, to=500, increment=1, width=8, textvariable=self.v["tree"]).grid(
+            row=r, column=1, sticky="w", **PAD)
+        r += 1
+        ttk.Label(g, style="Hint.TLabel", wraplength=520, justify="left", text=(
+            "Increased lifeforce quantity from your atlas passive tree, added up (0 if none). Saved with "
+            "each plant, like Atlas Drops.")).grid(row=r, column=0, columnspan=3, sticky="w", padx=10)
+        r += 1
+        self.v["white"] = tk.BooleanVar(value=bool(s.get("white_map")))
+        ttk.Checkbutton(g, text="White map (no map mods) - for baseline tests; also in the tray menu",
+                        variable=self.v["white"]).grid(row=r, column=0, columnspan=3, sticky="w", **PAD)
+        r += 1
+        ttk.Label(g, text="Tier 3 fauna per plant").grid(row=r, column=0, sticky="w", **PAD)
+        self.v["t3"] = tk.StringVar(value="" if s.get("t3_base") is None else str(s.get("t3_base")))
+        ttk.Spinbox(g, from_=0, to=50, increment=1, width=8, textvariable=self.v["t3"]).grid(
+            row=r, column=1, sticky="w", **PAD)
+        r += 1
+        ttk.Label(g, style="Hint.TLabel", wraplength=520, justify="left", text=(
+            "How many Tier 3 Sacred Fauna a plant spawns without a \"+ Rare Tier 3\" mod. Used to predict "
+            "Stacked Decks from the deck mod. Leave empty until you've counted.")).grid(
+            row=r, column=0, columnspan=3, sticky="w", padx=10)
+        r += 1
         ttk.Label(g, text="Path of Exile folder").grid(row=r, column=0, sticky="w", **PAD)
         self.v["poe"] = tk.StringVar(value=s.get("poe_log") or "")
         ttk.Entry(g, textvariable=self.v["poe"], width=44).grid(row=r, column=1, sticky="we", **PAD)
@@ -376,8 +399,15 @@ class SettingsWindow:
             atlas = float(atlas_txt) if atlas_txt else None
             port = int(self.v["port"].get())
             keep = int(self.v["keep"].get() or 0)
+            tree = float(self.v["tree"].get().strip() or 0)
+            t3_txt = self.v["t3"].get().strip()
+            t3 = int(float(t3_txt)) if t3_txt else None
             if atlas is not None and not 0 <= atlas <= 1000:
                 raise ValueError("Atlas Drops should be between 0 and 1000")
+            if not 0 <= tree <= 1000:
+                raise ValueError("Atlas tree lifeforce should be between 0 and 1000")
+            if t3 is not None and not 0 <= t3 <= 50:
+                raise ValueError("Tier 3 fauna per plant should be between 0 and 50")
             if not 1024 <= port <= 65535:
                 raise ValueError("The dashboard port should be between 1024 and 65535")
         except ValueError as exc:
@@ -390,6 +420,7 @@ class SettingsWindow:
         new_data = os.path.normpath(self.v["data"].get().strip() or s.data_dir)
         restart = False
         changes = dict(atlas_drops=atlas, rich_soil=bool(self.v["rich_soil"].get()),
+                       tree_lifeforce=tree, white_map=bool(self.v["white"].get()), t3_base=t3,
                        poe_log=self.v["poe"].get().strip(), label_colour=self.label_colour,
                        hotkeys=self.hotkeys, sounds=bool(self.v["sounds"].get()), volume=int(self.v["volume"].get()),
                        popup_scale=round(self.v["popup"].get() / 100, 2), save_screenshots=bool(self.v["shots"].get()),

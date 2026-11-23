@@ -25,7 +25,7 @@ from . import __version__  # noqa: E402
 USER_AGENT = f"PoE-Harvest-Tracker/{__version__} (+https://github.com/Alyrico/poe-harvest; about one request an hour)"
 MAX_AGE = 3600                       # seconds
 IDS = {"Wild": "wild-lifeforce", "Vivid": "vivid-lifeforce", "Primal": "primal-lifeforce",
-       "Sacred": "sacred-lifeforce"}
+       "Sacred": "sacred-lifeforce", "Stacked Deck": "stacked-deck"}
 
 
 def _get(url: str, timeout=10):

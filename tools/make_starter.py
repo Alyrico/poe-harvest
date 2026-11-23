@@ -2,9 +2,10 @@
 Build the starter model shipped with the app (src/poe_harvest/assets/starter_model.json) from a
 harvest.db: new players get estimates from these plants until they have enough of their own.
 
-    python tools/make_starter.py path/to/harvest.db [--atlas 82]
+    python tools/make_starter.py path/to/harvest.db [--atlas 82] [--tree 0]
 
---atlas: the Atlas Drops % for plants saved before the app recorded it.
+--atlas / --tree: the Atlas Drops % and atlas-tree lifeforce % for plants saved before the app
+recorded them. Plants without a white-map flag count as normal maps.
 """
 import argparse
 import datetime as dt
@@ -22,9 +23,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("db")
     ap.add_argument("--atlas", type=float, default=None)
+    ap.add_argument("--tree", type=float, default=0.0)
     args = ap.parse_args()
     con = sqlite3.connect(args.db)
-    data = mdl.plants(con, default_atlas=args.atlas)
+    data = mdl.plants(con, defaults={"atlas": args.atlas, "tree": args.tree, "white": False})
     m = mdl.fit(data)
     if m is None:
         print("not enough plants")
@@ -32,7 +34,8 @@ def main():
     rolls = [{"type": r["type"], "mods": r["mods"], "rewards": r["rewards"]} for r in mdl.rolls(con)]
     out = m.to_json({"version": __version__, "created": dt.date.today().isoformat(),
                      "rolls": rolls, "fingerprint": sorted(mdl.fingerprint(con)),
-                     "typical_error": m.loo_abs_err, "baseline_error": m.base_abs_err})
+                     "typical_error": m.loo_abs_err, "baseline_error": m.base_abs_err,
+                     "setup": {"atlas": args.atlas, "tree": args.tree}})
     path = mdl.STARTER_PATH
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"))

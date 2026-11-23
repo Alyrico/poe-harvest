@@ -62,18 +62,37 @@ next to a lifeforce drop and use **Settings → Game → Test**.
 - A plant that never gets a Numpad 3 is left out of everything.
 - Hotkeys can be any key or a mouse side button (Settings → Hotkeys).
 
-**Atlas Drops**: set your map's Atlas Drops % in Settings (or tray → *Atlas Drops*) whenever it
-changes. Every plant is saved with the value set when you read it, and estimates scale with it.
+**Map setup** (Settings → Game): every plant is saved with the setup that was set when you read it,
+so set these before a map that differs:
 
-**Tray menu** (right-click the leaf): Open dashboard · Settings · Pause · Atlas Drops · Open data
-folder · Loot filter guide · Quit. Double-click the leaf to open the dashboard.
+- **Atlas Drops %** (also in the tray menu) - estimates scale with it.
+- **Atlas tree lifeforce %** - lifeforce quantity from your atlas passive tree, added up (0 if none).
+- **White map** (also a tick in the tray menu) - for baseline tests in maps with no mods. The plant
+  popup says "white map" while it's on, so you notice if you forget to switch it off.
+- **Tier 3 fauna per plant** - how many Tier 3 Sacred Fauna a plant spawns without a "+ Rare Tier 3"
+  mod. Count it once; it's used to predict Stacked Decks. Leave it empty until you have.
+
+The map level is read from the game's log and saved with each plant too.
+
+**Tray menu** (right-click the leaf): Open dashboard · Settings · Pause · Atlas Drops · White map ·
+Open data folder · Loot filter guide · Quit. Double-click the leaf to open the dashboard.
 
 ## Estimates
 
-Lifeforce = a typical amount for the plant type × an effect per mod × the yellow (Vivid) wisp
-effect × (1 + Atlas Drops). New players start from the author's plants ("starter estimates");
-your own plants take over as you log them (fully at 100). The dashboard's **Estimates** tab shows
-how far off the estimates have been on your own plants.
+Lifeforce = a base amount for the plant type × an effect for each lifeforce mod × the yellow (Vivid)
+wisp effect × the map setup (Atlas Drops, atlas tree lifeforce, white map). Effects are measured
+against **no mod**. Mods that can't change lifeforce count as nothing and show "no lifeforce" in the
+popup: experience, item rarity, wisps released, monsters affected by wisps, fully linked, max
+sockets, and the Tier 3 item lines (Stacked Decks, Threads, Currency, Uniques).
+
+**Stacked Decks**: the Tier 3 deck line becomes a deck count - decks per Tier 3 fauna × Tier 3
+fauna (your count + any "+ Rare Tier 3" mod) × 2 if the items are Duplicated - valued at poe.ninja's
+Stacked Deck price. The popup shows it next to the lifeforce, and the Keep / Reroll advice weighs
+lifeforce and decks together, in chaos.
+
+New players start from the author's plants ("starter estimates"); your own plants take over as you
+log them (fully at 100). The dashboard's **Estimates** tab shows how far off the estimates have been
+on your own plants.
 
 ## Requirements
 

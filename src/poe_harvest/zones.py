@@ -62,7 +62,7 @@ def find_game_log(setting: str = "") -> str | None:
             return max(logs, key=lambda p: os.path.getmtime(p))
     return None
 MAP_PREFIX = "Map"                 # map areas are logged as e.g. "MapWorldsMausoleum"
-AREA_RE = re.compile(rb'Generating level \d+ area "([^"]+)" with seed (\d+)')
+AREA_RE = re.compile(rb'Generating level (\d+) area "([^"]+)" with seed (\d+)')
 FIRST_READ_BYTES = 16 * 1024 * 1024
 
 
@@ -89,6 +89,7 @@ class ZoneTracker:
         self.created = None
         self.area = None      # e.g. "MapWorldsMausoleum"
         self.seed = None      # changes for every new instance of an area
+        self.level = None     # the area's level (83 = tier 16 map)
 
     def set_path(self, setting: str):
         self.setting, self.path, self.offset = setting, find_game_log(setting), None
@@ -104,7 +105,7 @@ class ZoneTracker:
             created = getattr(st, "st_birthtime", st.st_ctime)
             size = st.st_size
             if self.offset is None or size < self.offset or created != self.created:
-                self.created, self.area, self.seed = created, None, None
+                self.created, self.area, self.seed, self.level = created, None, None, None
                 start = max(0, size - FIRST_READ_BYTES)
             else:
                 start = self.offset
@@ -115,8 +116,9 @@ class ZoneTracker:
                 end = data.rfind(b"\n") + 1          # only complete lines
                 found = AREA_RE.findall(data[:end])
                 if found:
-                    self.area = found[-1][0].decode("utf-8", "replace")
-                    self.seed = found[-1][1].decode()
+                    self.level = int(found[-1][0])
+                    self.area = found[-1][1].decode("utf-8", "replace")
+                    self.seed = found[-1][2].decode()
                 self.offset = start + end
             else:
                 self.offset = start

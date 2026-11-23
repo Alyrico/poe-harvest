@@ -125,50 +125,72 @@ def build_data():
             "result_cut": os.path.basename(last_res["crop"]) if last_res and last_res["crop"] else "",
             "node_reads": len(node), "problems": problems,
             "shown_est": e["est"], "shown_lo": e["est_lo"], "shown_hi": e["est_hi"], "price": e["price"],
-            "atlas": e["atlas_drops"],
+            "atlas": e["atlas_drops"], "tree": e["tree_lifeforce"],
+            "white": None if e["white_map"] is None else bool(e["white_map"]), "level": e["area_level"],
         })
     model_info = model_data(con, icons, enc)
     con.close()
     return {"generated": datetime.now().isoformat(timespec="seconds"), "flora_effect": modlib.flora_effect(),
             "version": __version__, "atlas_drops": S().get("atlas_drops"),
+            "setup": {"atlas": S().get("atlas_drops"), "tree": S().get("tree_lifeforce") or 0,
+                      "white": bool(S().get("white_map")), "t3_base": S().get("t3_base")},
             "mods": out_mods, "rewards": rewards_known, "encounters": enc, "model": model_info, "icons": icons}
 
 
 def model_data(con, icons, enc) -> dict:
-    """Phase 4: the fitted model, its accuracy, every mod's effect, rerolls in chaos, prices."""
+    """The fitted model, its accuracy, every mod's effect, rerolls in chaos, prices."""
     global _prices
+    from .estimator import DECK
     if _prices is None:
         _prices = Prices(data_dir(), league=lambda: S().get("league"))
     _prices.refresh_soon()
     out = {"prices": _prices.info(), "show_from": mdl.SHOW_FROM, "rough_until": mdl.ROUGH_UNTIL}
-    atlas = S().get("atlas_drops")
-    m = mdl.choose(con, S().get("starter_estimates") or "auto", default_atlas=atlas)
+    setup = {"atlas": S().get("atlas_drops"), "tree": S().get("tree_lifeforce") or 0, "white": bool(S().get("white_map"))}
+    defaults = dict(setup, white=False)
+    m = mdl.choose(con, S().get("starter_estimates") or "auto", defaults=defaults)
     if m is None:
         out["fitted"] = False
         return out
-    data = mdl.plants(con)
+    data = mdl.plants(con, defaults=defaults)
     seen = {}
     for p in data:
-        for mid in p["mods"]:
-            key = mdl.REWARD if mid in mdl.REWARD_IDS else mid
-            seen[key] = seen.get(key, 0) + 1
-        seen[mdl.REWARD] = seen.get(mdl.REWARD, 0) + len(p["rewards"])
+        for mid in list(p["mods"]) + ["reward:" + r for r in p["rewards"]]:
+            seen[mid] = seen.get(mid, 0) + 1
     effects = []
-    for mid in mdl.MOD_IDS + [mdl.REWARD]:
-        tv = mdl.typical_value(mid) if mid in mdl.MOD_IDS else None
+    for mid in mdl.LF_MODS:
+        tv = mdl.typical_value(mid)
         e, lo, hi = m.mod_effect(mid, tv)
         step = m.per_step(mid)
         effects.append({"id": mid, "n": seen.get(mid, 0), "effect": e, "lo": lo, "hi": hi,
                         "typical_value": tv, "icon": m.icon(e, lo, hi, icons.get(mid, "auto")),
                         "auto_icon": m.icon(e, lo, hi), "step": step[0] if step else None,
                         "per_step": step[1] if step else None})
+    no_effect = [{"id": mid, "n": seen.get(mid, 0)} for mid in sorted(mdl.NO_EFFECT)] + \
+                [{"id": "reward:" + r, "n": seen.get("reward:" + r, 0)} for r in modlib.KNOWN_REWARDS]
     wisps = []
     for y in (1000, 2000, 3000, 4000, 5000):
         e, lo, hi = m.wisp_effect(y)
         wisps.append({"yellow": y, "effect": e, "lo": lo, "hi": hi, "icon": m.icon(e, lo, hi)})
+    conditions = {k: m.condition_effect(k, v) for k, v in ((mdl.ATLAS, setup["atlas"]), (mdl.TREE, setup["tree"]))
+                  if v}
+    conditions[mdl.WHITE] = m.condition_effect(mdl.WHITE, True)
+    t3 = S().get("t3_base")
+    p_deck = _prices.chaos_each(DECK)
+
+    def cond_of(e):
+        return {"atlas": e["atlas"] if e["atlas"] is not None else setup["atlas"],
+                "tree": e["tree"] if e["tree"] is not None else setup["tree"],
+                "white": bool(e["white"]) if e["white"] is not None else False}
+
+    def decks_of(plant):
+        if DECK not in plant.get("rewards", {}):
+            return 0
+        return mdl.reward_counts(plant, t3).get(DECK) or 0
+
     # reroll ledger: every counted plant that was rerolled. Each roll you read gets today's estimate;
     # "extra" = actual lifeforce minus what the first roll would likely have given (its estimate),
-    # "expected extra" = final roll's estimate minus the first roll's (luck taken out).
+    # "expected extra" = final roll's estimate minus the first roll's (luck taken out), plus the
+    # change in expected Stacked Decks once the Tier 3 count is set.
     yellow_by_map = {mid: v.get("yellow") for mid, v in mdl.map_wisps(con).items()}
     rerolls = []
     for e in enc:
@@ -186,12 +208,12 @@ def model_data(con, icons, enc) -> dict:
             if key == last:
                 continue
             last = key
-            est = None
-            if ok and pj.get("mods") and pj.get("type") == e["type"]:
-                est = m.estimate({"type": e["type"], "mods": pj["mods"], "rewards": pj.get("rewards", {}),
-                                  "yellow": yellow_by_map.get(map_id) or 0,
-                                  "atlas": e["atlas"] if e["atlas"] is not None else atlas})[0]
-            rolls.append({"name": pj.get("name", ""), "est": est})
+            est = decks = None
+            if pj.get("mods") and pj.get("type") == e["type"]:
+                plant = {"type": e["type"], "mods": pj["mods"], "rewards": pj.get("rewards", {}),
+                         "yellow": yellow_by_map.get(map_id) or 0, **cond_of(e)}
+                est, decks = m.estimate(plant)[0], decks_of(plant)
+            rolls.append({"name": pj.get("name", ""), "est": est, "decks": decks})
         price_now = _prices.chaos_each(e["type"])
         price = e["price"] or price_now
         first = rolls[0]["est"] if rolls else None
@@ -202,31 +224,33 @@ def model_data(con, icons, enc) -> dict:
         if first is not None:
             row["extra"] = e["lifeforce"] - first
             row["expected_extra"] = final - first if final is not None else None
+            if t3 is not None and len(rolls) > 1 and rolls[0]["decks"] is not None and rolls[-1]["decks"] is not None:
+                row["extra_decks"] = rolls[-1]["decks"] - rolls[0]["decks"]
             if price:
                 row["worth"] = row["extra"] * price
                 row["net"] = row["worth"] - e["chaos"]
                 if row["expected_extra"] is not None:
-                    row["expected_worth"] = row["expected_extra"] * price
+                    row["expected_worth"] = row["expected_extra"] * price + (row.get("extra_decks") or 0) * (p_deck or 0)
                     row["expected_net"] = row["expected_worth"] - e["chaos"]
         rerolls.append(row)
     # estimates per encounter: leave-one-out for counted plants (an honest test), else from all plants
     for e in enc:
+        e["decks"] = None
         if e["id"] in m.loo_pred:
             e["est"] = m.loo_pred[e["id"]]
-        elif e["kind"] == "flora" and e["type"] in mdl.TYPES and e["mods"]:
-            e["est"] = m.estimate({"type": e["type"], "mods": {k: v for k, v in e["mods"].items()},
-                                   "rewards": e["rewards"], "yellow": e["wisps"].get("yellow") or 0,
-                                   "atlas": e["atlas"] if e["atlas"] is not None else atlas})[0]
+        elif e["kind"] == "flora" and e["type"] in mdl.TYPES:
+            e["est"] = m.estimate({"type": e["type"], "mods": dict(e["mods"]), "rewards": e["rewards"],
+                                   "yellow": e["wisps"].get("yellow") or 0, **cond_of(e)})[0]
         else:
             e["est"] = None
-    out.update(fitted=True, usable=m.usable, rough=m.rough, effects=effects, wisps=wisps, rerolls=rerolls,
-               atlas_effect=(m.atlas_effect(atlas) if atlas else None), **m.summary(atlas or 0))
+        if e["kind"] == "flora" and DECK in (e["rewards"] or {}) and t3 is not None:
+            e["decks"] = decks_of({"mods": e["mods"], "rewards": e["rewards"]})
+    out.update(fitted=True, usable=m.usable, rough=m.rough, effects=effects, no_effect=no_effect, wisps=wisps,
+               rerolls=rerolls, conditions={k: list(v) for k, v in conditions.items()},
+               deck_price=p_deck, **m.summary(setup))
     return out
 
 
-# ---------------------------------------------------------------------------
-# corrections from the page
-# ---------------------------------------------------------------------------
 def fix_key(row_shot, row_cut):
     return row_shot or row_cut
 
@@ -277,9 +301,13 @@ def apply_fix(body: dict) -> dict:
                 n = max(0, int(body["rerolls"]))
                 con.execute("UPDATE encounters SET rerolls = ?, chaos_spent = ? WHERE id = ?", (n, n * CHAOS_PER_REROLL, eid))
                 fixes.setdefault(node_key, {}).update({"rerolls": n, "note": note})
-            if body.get("atlas") not in (None, "") and node_key and float(body["atlas"]) != e["atlas_drops"]:
-                con.execute("UPDATE encounters SET atlas_drops = ? WHERE id = ?", (float(body["atlas"]), eid))
-                fixes.setdefault(node_key, {}).update({"atlas": float(body["atlas"]), "note": note})
+            for key, col in (("atlas", "atlas_drops"), ("tree", "tree_lifeforce")):
+                if body.get(key) not in (None, "") and node_key and float(body[key]) != e[col]:
+                    con.execute(f"UPDATE encounters SET {col} = ? WHERE id = ?", (float(body[key]), eid))
+                    fixes.setdefault(node_key, {}).update({key: float(body[key]), "note": note})
+            if "white" in body and node_key and int(bool(body["white"])) != (e["white_map"] or 0):
+                con.execute("UPDATE encounters SET white_map = ? WHERE id = ?", (int(bool(body["white"])), eid))
+                fixes.setdefault(node_key, {}).update({"white": int(bool(body["white"])), "note": note})
             action = "accept"                       # saving a correction also confirms it
 
         error = None

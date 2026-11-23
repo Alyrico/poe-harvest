@@ -41,7 +41,7 @@ class NodeEvent:
     box: tuple                 # tooltip x0, y0, x1, bottom (screen pixels inside the game window)
     screenshot: str = ""
     crop: str = ""
-    atlas: float | None = None  # the Atlas Drops % set at the time
+    cond: dict | None = None    # the map setup at the time: {"atlas", "tree", "white", "level"}
 
 
 @dataclass
@@ -152,13 +152,15 @@ class EncounterTracker:
                 # the first read failed and this one is good: it's the real first roll
                 pend["first"] = {"mods": mods, "rewards": dict(p.rewards), "clean": True, "yellow": w.get("yellow", 0)}
         else:
+            cond = ev.cond or {}
             self._drop_pending()      # a different plant: the earlier one never got a result
             cur = self.con.execute(
-                "INSERT INTO encounters (map_id, kind, status, source, node_time, atlas_drops) "
-                "VALUES (?, ?, 'pending', ?, ?, ?)",
-                (map_id, p.kind, self.source, when, ev.atlas))
+                "INSERT INTO encounters (map_id, kind, status, source, node_time, atlas_drops, tree_lifeforce, "
+                "white_map, area_level) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?)",
+                (map_id, p.kind, self.source, when, cond.get("atlas"), cond.get("tree"),
+                 None if cond.get("white") is None else int(bool(cond.get("white"))), cond.get("level")))
             eid = cur.lastrowid
-            pend = self.pending = {"id": eid, "map_id": map_id, "kind": p.kind, "colour": p.colour, "atlas": ev.atlas,
+            pend = self.pending = {"id": eid, "map_id": map_id, "kind": p.kind, "colour": p.colour, "cond": cond,
                                    "rerolls": 0, "first": {"mods": mods, "rewards": dict(p.rewards), "clean": clean,
                                                            "yellow": w.get("yellow", 0)}}
         # a failed re-read of a roll that was already read cleanly doesn't overwrite the good read
@@ -184,7 +186,7 @@ class EncounterTracker:
         desc = None
         if self.estimator is not None and clean and p.kind == "flora":
             yellow = w.get("yellow", 0) if w.get("yellow", 0) is not None else self.estimator.map_yellow(map_id)
-            desc = self.estimator.describe(p.colour, mods, p.rewards, yellow, pend.get("atlas"))
+            desc = self.estimator.describe(p.colour, mods, p.rewards, yellow, pend.get("cond"), p.rarity)
         if desc:
             prev = pend.get("est") if (reroll or repeat) else None
             pend["est"] = desc["est"]
@@ -231,16 +233,22 @@ class EncounterTracker:
         f = pend.get("first") or {}
         if self.estimator is None or not f.get("clean") or not self.estimator.active:
             return None
-        d = self.estimator.describe(pend["colour"], f["mods"], f["rewards"], f.get("yellow") or 0, pend.get("atlas"))
+        d = self.estimator.describe(pend["colour"], f["mods"], f["rewards"], f.get("yellow") or 0, pend.get("cond"))
         return d["est"] if d else None
 
     def _estimate_popup(self, p, desc, w, ev, pend, reroll, repeat, prev) -> dict:
         from .popup_render import TYPE_COLOURS
-        lines = [{"text": f"≈ {desc['est']:,.0f} {p.colour} lifeforce" + ("  (rough)" if desc["rough"] else ""),
-                  "big": True, "rgb": TYPE_COLOURS.get(p.colour)},
-                 {"text": f"likely {desc['lo']:,.0f}–{desc['hi']:,.0f}  ·  {desc['vs_typical'] * 100:+.0f}% vs a typical "
-                          f"{p.colour} plant", "small": True, "colour": "sub"}]
+        head = f"≈ {desc['est']:,.0f} {p.colour} lifeforce"
+        if desc.get("decks"):
+            head += f"  +  ≈ {desc['decks']:g} Stacked Decks"
+        lines = [{"text": head + ("  (rough)" if desc["rough"] else ""), "big": True, "rgb": TYPE_COLOURS.get(p.colour)},
+                 {"text": f"likely {desc['lo']:,.0f}–{desc['hi']:,.0f}  ·  {desc['vs_average'] * 100:+.0f}% vs an average "
+                          f"{p.colour} plant" + (f"  ·  worth ≈ {desc['value']:,.0f}c" if desc.get("value") else ""),
+                  "small": True, "colour": "sub"}]
         lines += desc["lines"]
+        if desc.get("deck_line") and desc.get("decks") is None:
+            lines.append({"text": "Count the Tier 3 fauna on a plant and enter it in Settings to value the decks",
+                          "colour": "sub", "small": True})
         others = [f"{v:,} {k}" if v is not None else f"? {k}" for k, v in w.items() if k != "yellow"]
         if w.get("yellow", 0) is None:
             others.insert(0, "? yellow")
@@ -255,7 +263,7 @@ class EncounterTracker:
                 lines.append({"icon": "neutral", "text": "Close call - keep, or reroll for a small gain",
                               "colour": "neutral", "right": f"worth ≈ {a['gain_chaos']:+.1f}c"})
             else:
-                lines.append({"icon": "neutral", "text": f"Reroll - aim for {a['target']:,.0f}+ "
+                lines.append({"icon": "neutral", "text": f"Reroll - aim for a plant worth {a['target_chaos']:,.0f}c+ "
                                                           f"(top {max(a['target_share'] * 100, 1):.0f}% of rolls)",
                               "colour": "neutral", "right": f"worth ≈ {a['gain_chaos']:+.1f}c"})
         status = ""
@@ -274,6 +282,8 @@ class EncounterTracker:
         elif repeat:
             status = "Same as before"
         title_right = f"{p.colour} · {p.rarity.capitalize()}"
+        if (pend.get("cond") or {}).get("white"):
+            title_right += " · white map"               # so a forgotten white-map switch is noticed
         return {"kind": "node", "title": p.name or "?", "title_right": title_right, "type": p.colour,
                 "lines": lines, "status": status, "footer": self._footer(), "anchor": ev.box}
 

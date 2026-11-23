@@ -4,7 +4,11 @@ First public build of PoE Harvest Tracker.
   default; any key or a mouse side button).
 - Estimates at every plant with ✔/✘/~ per mod, and Keep/Reroll advice from poe.ninja prices.
   New players start from the author's 62 plants.
-- Dashboard: best and worst mods, estimate accuracy, reroll ledger in chaos, every plant with what
+- Mods that can't change lifeforce (experience, rarity, wisps released, fully linked, the Tier 3
+  item lines, ...) count as nothing instead of a penalty.
+- Stacked Decks predicted from the mods and valued in chaos, in the popup and the reroll advice.
+- Each plant saves its map setup: Atlas Drops, atlas tree lifeforce, white map, map level.
+- Dashboard: best and weakest mods, estimate accuracy, reroll ledger in chaos, every plant with what
   was read, corrections.
 - Tray icon, settings window (Atlas Drops, hotkeys, data folder, loot-filter colour, ...),
   any resolution, standalone or Steam.

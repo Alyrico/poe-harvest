@@ -53,6 +53,9 @@ ADDED_COLUMNS = [
     ("encounters", "est_first", "REAL"),        # estimate of the plant's first roll (reroll ledger)
     ("encounters", "price", "REAL"),            # chaos per lifeforce of the plant's type, at the result
     ("encounters", "atlas_drops", "REAL"),      # the Atlas Drops % set when the plant was read (app, 22 Nov)
+    ("encounters", "tree_lifeforce", "REAL"),   # lifeforce quantity % from atlas passives, set at the time
+    ("encounters", "white_map", "INTEGER"),     # 1 = a white map (no map mods)
+    ("encounters", "area_level", "INTEGER"),    # the map's level, from the game's log
 ]
 
 

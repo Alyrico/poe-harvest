@@ -33,7 +33,7 @@ GUIDE_URL = f"https://github.com/{REPO}#set-up-your-loot-filter"
 log = logging.getLogger("poe_harvest")
 
 # tray menu commands
-CMD_DASHBOARD, CMD_SETTINGS, CMD_PAUSE, CMD_ATLAS, CMD_FOLDER, CMD_UPDATE, CMD_GUIDE, CMD_QUIT = range(1, 9)
+CMD_DASHBOARD, CMD_SETTINGS, CMD_PAUSE, CMD_ATLAS, CMD_FOLDER, CMD_UPDATE, CMD_GUIDE, CMD_QUIT, CMD_WHITE = range(1, 10)
 
 
 def setup_logging(folder, debug=False):
@@ -199,6 +199,8 @@ class App:
         else:
             state, tip = "ready", f"{APP_NAME} - ready"
         tip += f"\n{self.plants()} plants · Atlas Drops {'?' if atlas is None else f'{atlas:g}'}%"
+        if self.settings.get("white_map"):
+            tip += " · white map"
         self.ui.set_tray(state, tip)
 
     def tray_menu(self):
@@ -208,6 +210,7 @@ class App:
                  (CMD_PAUSE, "Pause", True, self.paused),
                  None,
                  (CMD_ATLAS, f"Atlas Drops: {'not set' if atlas is None else f'{atlas:g}%'} - change...", True, False),
+                 (CMD_WHITE, "White map (no map mods)", True, bool(self.settings.get("white_map"))),
                  (CMD_FOLDER, "Open data folder", True, False),
                  (CMD_GUIDE, "Loot filter guide", True, False)]
         if self.update:
@@ -220,6 +223,8 @@ class App:
             self.dashboard.open()
         elif cmd in (CMD_SETTINGS, CMD_ATLAS):
             self.open_settings(focus="atlas" if cmd == CMD_ATLAS else None)
+        elif cmd == CMD_WHITE:
+            self.settings.update(white_map=not self.settings.get("white_map"))
         elif cmd == CMD_PAUSE:
             self.paused = not self.paused
             self.refresh_tray()
@@ -257,7 +262,7 @@ class App:
                 win.set_start_with_windows(bool(self.settings["start_with_windows"]))
             except OSError:
                 log.exception("couldn't change 'start with Windows'")
-        if {"rich_soil", "starter_estimates", "atlas_drops", "league"} & set(changes):
+        if {"rich_soil", "starter_estimates", "atlas_drops", "tree_lifeforce", "white_map", "t3_base", "league"} & set(changes):
             with self.busy:
                 self.estimator.refit()
         self.refresh_tray()
