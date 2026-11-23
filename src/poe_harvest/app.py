@@ -107,6 +107,8 @@ class App:
                  self.zones.path or "not found yet")
         if not self.settings["first_run_done"] or self.settings.get("atlas_drops") is None:
             self.open_settings(first_run=True)
+        elif self.plants_without_atlas():
+            self.open_settings(focus="atlas")             # e.g. after pointing the app at older data
         elif not self.background:
             self.ui.notify(APP_NAME, f"Running in the tray. {win.hotkey_name(self.settings['hotkeys']['node'])} "
                                      f"at a plant, {win.hotkey_name(self.settings['hotkeys']['result'])} at the lifeforce.")
