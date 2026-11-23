@@ -66,7 +66,11 @@ next to a lifeforce drop and use **Settings → Game → Test**.
 so set these before a map that differs:
 
 - **Atlas Drops %** (also in the tray menu) - estimates scale with it.
-- **Atlas tree lifeforce %** - lifeforce quantity from your atlas passive tree, added up (0 if none).
+- **Atlas tree lifeforce %** - "Sacred Fauna in your Maps drop X% increased Quantity of Lifeforce" from
+  your atlas passive tree (0 if none).
+- **Lifeforce / Sacred Fauna duplicate chance %** - "Lifeforce dropped by Sacred Fauna ... has X% chance
+  to be Duplicated" and "Sacred Fauna ... have X% chance to be duplicated". These are applied exactly
+  (on average ×(1 + chance)), so estimates move with your tree from the first plant.
 - **White map** (also a tick in the tray menu) - for baseline tests in maps with no mods. The plant
   popup says "white map" while it's on, so you notice if you forget to switch it off.
 - **Tier 3 fauna per plant** - how many Tier 3 Sacred Fauna a plant spawns without a "+ Rare Tier 3"
@@ -80,7 +84,7 @@ Open data folder · Loot filter guide · Quit. Double-click the leaf to open the
 ## Estimates
 
 Lifeforce = a base amount for the plant type × an effect for each lifeforce mod × the yellow (Vivid)
-wisp effect × the map setup (Atlas Drops, atlas tree lifeforce, white map). Effects are measured
+wisp effect × the map setup (Atlas Drops, atlas tree lifeforce, duplicate chances, white map). Effects are measured
 against **no mod**. Mods that can't change lifeforce count as nothing and show "no lifeforce" in the
 popup: experience, item rarity, wisps released, monsters affected by wisps, fully linked, max
 sockets, and the Tier 3 item lines (Stacked Decks, Threads, Currency, Uniques).

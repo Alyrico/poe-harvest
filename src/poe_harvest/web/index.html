@@ -604,6 +604,8 @@ function setupText(M) {
     (M.atlas_levels > 1 ? `measured from ${M.atlas_levels} different values` : "a straight-line increase assumed until you log plants at another %"));
   if (C.tree_lifeforce) parts.push(`Atlas tree +${su.tree}% lifeforce: ${r(C.tree_lifeforce)} - ` +
     (M.tree_levels > 1 ? `measured from ${M.tree_levels} different values` : "assumed until you log plants at another tree %"));
+  if (C.lifeforce_dup && su.lf_dup) parts.push(`Lifeforce duplicate chance ${su.lf_dup}%: ×${(1 + C.lifeforce_dup[0]).toFixed(2)} on average (exact)`);
+  if (C.fauna_dup && su.fauna_dup) parts.push(`Sacred Fauna duplicate chance ${su.fauna_dup}%: ×${(1 + C.fauna_dup[0]).toFixed(2)} on average (exact)`);
   if (C.white_map) parts.push(`White map: ${r(C.white_map)} vs a map with mods - ` +
     (M.white_plants ? `from ${M.white_plants} plant${M.white_plants === 1 ? "" : "s"} in white maps` : "no white-map plants yet"));
   return parts.length ? `<p class="muted">Map setup: ${parts.join(" · ")}.</p>` : "";

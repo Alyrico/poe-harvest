@@ -130,9 +130,21 @@ class SettingsWindow:
         ttk.Spinbox(g, from_=0, to=500, increment=1, width=8, textvariable=self.v["tree"]).grid(
             row=r, column=1, sticky="w", **PAD)
         r += 1
+        ttk.Label(g, text="Lifeforce duplicate chance %").grid(row=r, column=0, sticky="w", **PAD)
+        self.v["lf_dup"] = tk.StringVar(value=f"{float(s.get('lifeforce_dup') or 0):g}")
+        ttk.Spinbox(g, from_=0, to=100, increment=1, width=8, textvariable=self.v["lf_dup"]).grid(
+            row=r, column=1, sticky="w", **PAD)
+        r += 1
+        ttk.Label(g, text="Sacred Fauna duplicate chance %").grid(row=r, column=0, sticky="w", **PAD)
+        self.v["fauna_dup"] = tk.StringVar(value=f"{float(s.get('fauna_dup') or 0):g}")
+        ttk.Spinbox(g, from_=0, to=100, increment=1, width=8, textvariable=self.v["fauna_dup"]).grid(
+            row=r, column=1, sticky="w", **PAD)
+        r += 1
         ttk.Label(g, style="Hint.TLabel", wraplength=520, justify="left", text=(
-            "Increased lifeforce quantity from your atlas passive tree, added up (0 if none). Saved with "
-            "each plant, like Atlas Drops.")).grid(row=r, column=0, columnspan=3, sticky="w", padx=10)
+            "From your atlas passive tree's stat list (0 if you don't have them): \"Sacred Fauna in your Maps drop "
+            "X% increased Quantity of Lifeforce\", \"Lifeforce dropped by Sacred Fauna ... has X% chance to be "
+            "Duplicated\" and \"Sacred Fauna ... have X% chance to be duplicated\". Saved with each plant, like "
+            "Atlas Drops.")).grid(row=r, column=0, columnspan=3, sticky="w", padx=10)
         r += 1
         self.v["white"] = tk.BooleanVar(value=bool(s.get("white_map")))
         ttk.Checkbutton(g, text="White map (no map mods) - for baseline tests; also in the tray menu",
@@ -406,6 +418,10 @@ class SettingsWindow:
             port = int(self.v["port"].get())
             keep = int(self.v["keep"].get() or 0)
             tree = float(self.v["tree"].get().strip() or 0)
+            lf_dup = float(self.v["lf_dup"].get().strip() or 0)
+            fauna_dup = float(self.v["fauna_dup"].get().strip() or 0)
+            if not (0 <= lf_dup <= 100 and 0 <= fauna_dup <= 100):
+                raise ValueError("Duplicate chances should be between 0 and 100")
             t3_txt = self.v["t3"].get().strip()
             t3 = float(t3_txt) if t3_txt else None           # an average over a few plants, e.g. 4.5
             if atlas is not None and not 0 <= atlas <= 1000:
@@ -426,7 +442,8 @@ class SettingsWindow:
         new_data = os.path.normpath(self.v["data"].get().strip() or s.data_dir)
         restart = False
         changes = dict(atlas_drops=atlas, rich_soil=bool(self.v["rich_soil"].get()),
-                       tree_lifeforce=tree, white_map=bool(self.v["white"].get()), t3_base=t3,
+                       tree_lifeforce=tree, lifeforce_dup=lf_dup, fauna_dup=fauna_dup,
+                       white_map=bool(self.v["white"].get()), t3_base=t3,
                        poe_log=self.v["poe"].get().strip(), label_colour=self.label_colour,
                        hotkeys=self.hotkeys, sounds=bool(self.v["sounds"].get()), volume=int(self.v["volume"].get()),
                        popup_scale=round(self.v["popup"].get() / 100, 2), save_screenshots=bool(self.v["shots"].get()),

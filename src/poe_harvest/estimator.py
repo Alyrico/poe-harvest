@@ -61,6 +61,7 @@ class Estimator:
     def conditions(self) -> dict:
         """The map setup set now (stamped on new plants; fills in for plants from before)."""
         return {"atlas": self.setting("atlas_drops"), "tree": self.setting("tree_lifeforce") or 0,
+                "lf_dup": self.setting("lifeforce_dup") or 0, "fauna_dup": self.setting("fauna_dup") or 0,
                 "white": bool(self.setting("white_map"))}
 
     def refit(self):

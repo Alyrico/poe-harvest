@@ -58,9 +58,22 @@ MOD_IDS = [mid for mid, _, kind in modlib.MODS if kind == "mod"]
 LF_MODS = [mid for mid in MOD_IDS if mid not in NO_EFFECT]          # mods that may change lifeforce
 
 WISPS, ATLAS, TREE, WHITE = "yellow_wisps", "atlas_drops", "tree_lifeforce", "white_map"
+LF_DUP, FAUNA_DUP = "lifeforce_dup", "fauna_dup"
+# The map setup, saved with every plant: (feature, key in a plant / setup dict, kind, prior, prior sd).
+#   pct:  a percentage, as log(1 + pct/100) - a coefficient of 1 = lifeforce grows in step with it
+#   flag: on / off
+# Duplicate chances are exact on average (x(1 + chance)), so their prior sd is tiny: fixed, not fitted.
+CONDITION_SPEC = [
+    (ATLAS, "atlas", "pct", 1.0, 0.25),
+    (TREE, "tree", "pct", 1.0, 0.25),
+    (LF_DUP, "lf_dup", "pct", 1.0, 0.02),        # "Lifeforce dropped by Sacred Fauna has X% chance to be Duplicated"
+    (FAUNA_DUP, "fauna_dup", "pct", 1.0, 0.02),  # "Sacred Fauna have X% chance to be duplicated"
+    (WHITE, "white", "flag", 0.0, 0.5),
+]
+COND_KEY = {name: key for name, key, _, _, _ in CONDITION_SPEC}
 # Known or assumed from how the game works, until the data says otherwise:
-PRIOR = {"items_duplicated": math.log(2), ATLAS: 1.0, TREE: 1.0, WHITE: 0.0}
-PRIOR_SD = {ATLAS: 0.25, TREE: 0.25, WHITE: 0.5}      # how sure we are of those before testing them
+PRIOR = {"items_duplicated": math.log(2), **{name: prior for name, _, _, prior, _ in CONDITION_SPEC}}
+PRIOR_SD = {name: sd for name, _, _, _, sd in CONDITION_SPEC}   # how sure we are of those before testing them
 
 
 def typical_value(mid: str):
@@ -116,7 +129,8 @@ def rolls(con) -> list[dict]:
     return out
 
 
-CONDITION_COLUMNS = {"atlas": "atlas_drops", "tree": "tree_lifeforce", "white": "white_map", "level": "area_level"}
+CONDITION_COLUMNS = {"atlas": "atlas_drops", "tree": "tree_lifeforce", "lf_dup": "lifeforce_dup",
+                     "fauna_dup": "fauna_dup", "white": "white_map", "level": "area_level"}
 
 
 def plants(con, only_ok=True, defaults=None) -> list[dict]:
@@ -165,14 +179,20 @@ def pct_feature(pct) -> float:
 
 
 def feature_names() -> list[str]:
-    return list(TYPES) + LF_MODS + [WISPS, ATLAS, TREE, WHITE]
+    return list(TYPES) + LF_MODS + [WISPS] + [name for name, *_ in CONDITION_SPEC]
 
 
 K = len(TYPES)
 I_WISP = K + len(LF_MODS)
-I_ATLAS, I_TREE, I_WHITE = I_WISP + 1, I_WISP + 2, I_WISP + 3
-N_FEATURES = I_WHITE + 1
-CONDITIONS = (I_ATLAS, I_TREE, I_WHITE)
+I_COND = {name: I_WISP + 1 + i for i, (name, *_) in enumerate(CONDITION_SPEC)}
+I_ATLAS, I_TREE, I_WHITE = I_COND[ATLAS], I_COND[TREE], I_COND[WHITE]
+N_FEATURES = I_WISP + 1 + len(CONDITION_SPEC)
+CONDITIONS = tuple(I_COND.values())
+
+
+def _set_conditions(v: np.ndarray, cond: dict):
+    for name, key, kind, _, _ in CONDITION_SPEC:
+        v[I_COND[name]] = (1.0 if cond.get(key) else 0.0) if kind == "flag" else pct_feature(cond.get(key))
 
 
 def features(plant: dict, scaled: bool, curve: str) -> np.ndarray:
@@ -183,9 +203,7 @@ def features(plant: dict, scaled: bool, curve: str) -> np.ndarray:
             v, t = plant["mods"][mid], typical_value(mid)
             x[K + j] = (v / t) if (scaled and v is not None and t) else 1.0
     x[I_WISP] = _wisp_feature(plant.get("yellow"), curve)
-    x[I_ATLAS] = pct_feature(plant.get("atlas"))
-    x[I_TREE] = pct_feature(plant.get("tree"))
-    x[I_WHITE] = 1.0 if plant.get("white") else 0.0
+    _set_conditions(x, plant)
     return x
 
 
@@ -196,11 +214,8 @@ def mods_mask() -> np.ndarray:
 
 
 def condition_vector(cond: dict | None) -> np.ndarray:
-    cond = cond or {}
     v = np.zeros(N_FEATURES)
-    v[I_ATLAS] = pct_feature(cond.get("atlas"))
-    v[I_TREE] = pct_feature(cond.get("tree"))
-    v[I_WHITE] = 1.0 if cond.get("white") else 0.0
+    _set_conditions(v, cond or {})
     return v
 
 
@@ -255,12 +270,7 @@ class Model:
     def condition_effect(self, which: str, value):
         """Lifeforce at this Atlas Drops % / atlas-passive quantity % / white map, vs 0% / normal map."""
         v = np.zeros_like(self.beta)
-        if which == ATLAS:
-            v[I_ATLAS] = pct_feature(value)
-        elif which == TREE:
-            v[I_TREE] = pct_feature(value)
-        else:
-            v[I_WHITE] = 1.0 if value else 0.0
+        _set_conditions(v, {COND_KEY[which]: value})
         return self._rng(v)
 
     def per_step(self, mid: str):
@@ -307,8 +317,7 @@ class Model:
                 "curve": self.curve, "lambda": self.lam, "sigma": self.sigma,
                 "typical_error": self.loo_abs_err, "baseline_error": self.base_abs_err,
                 "coverage": self.coverage, **self.counts,
-                "coef": {ATLAS: float(self.beta[I_ATLAS]), TREE: float(self.beta[I_TREE]),
-                         WHITE: float(self.beta[I_WHITE])},
+                "coef": {name: float(self.beta[i]) for name, i in I_COND.items()},
                 "base": {t: self.base(t, cond) for t in TYPES}}
 
     def to_json(self, extra=None) -> dict:
@@ -365,7 +374,7 @@ def fit(data: list[dict]) -> Model | None:
                 # penalty per feature: none for the base amounts, lam for mods and wisps, and a fixed
                 # strength (whatever lam is) for the conditions, from their prior sd
                 pen = np.array([0.0] * K + [lam] * (I_WISP + 1 - K) + [0.0] * len(CONDITIONS))
-                for i, nm in zip(CONDITIONS, (ATLAS, TREE, WHITE)):
+                for nm, i in I_COND.items():
                     pen[i] = 0.06 / PRIOR_SD[nm] ** 2
                 A = X.T @ X + np.diag(pen)
                 A_inv = np.linalg.pinv(A)
@@ -411,7 +420,7 @@ def fit_with_starter(data: list[dict], starter: dict) -> Model:
     S = np.array(starter["cov"]) * 4.0                     # widened: other players differ
     for i in range(K):
         S[i, i] += 0.3 ** 2                                 # base amounts: +-30% is quite possible
-    for i, nm in zip(CONDITIONS, (ATLAS, TREE, WHITE)):
+    for nm, i in I_COND.items():
         S[i, :] = S[:, i] = 0
         S[i, i] = PRIOR_SD[nm] ** 2
     P = np.linalg.pinv(S)
