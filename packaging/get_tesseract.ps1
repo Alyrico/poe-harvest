@@ -14,8 +14,23 @@ $setup = Join-Path $env:RUNNER_TEMP $asset.name
 Invoke-WebRequest -Headers $headers -Uri $asset.browser_download_url -OutFile $setup
 
 $tmp = Join-Path $env:RUNNER_TEMP "tesseract-install"
-$p = Start-Process -FilePath $setup -ArgumentList "/S", "/D=$tmp" -Wait -PassThru
+$p = Start-Process -FilePath $setup -ArgumentList "/S /D=$tmp" -Wait -PassThru
 if ($p.ExitCode -ne 0) { throw "Tesseract installer failed ($($p.ExitCode))" }
+
+# The installer may ignore /D, or finish in the background: look where it went, for up to 2 minutes.
+$candidates = @($tmp, "$env:ProgramFiles\Tesseract-OCR", "${env:ProgramFiles(x86)}\Tesseract-OCR",
+                "$env:LOCALAPPDATA\Programs\Tesseract-OCR")
+$found = $null
+for ($i = 0; $i -lt 60 -and -not $found; $i++) {
+    $found = $candidates | Where-Object { Test-Path (Join-Path $_ "tessdata\eng.traineddata") } | Select-Object -First 1
+    if (-not $found) { Start-Sleep -Seconds 2 }
+}
+if (-not $found) {
+    Get-ChildItem $env:RUNNER_TEMP | Format-Table Name
+    throw "Tesseract wasn't installed in any of: $($candidates -join ', ')"
+}
+Write-Host "Tesseract installed in $found"
+$tmp = $found
 
 New-Item -ItemType Directory -Force -Path (Join-Path $Dest "tessdata") | Out-Null
 Copy-Item (Join-Path $tmp "tesseract.exe") $Dest
