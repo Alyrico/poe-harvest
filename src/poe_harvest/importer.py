@@ -70,8 +70,7 @@ def apply_exclusions(con, fixes):
         if fix.get("note"):
             for eid in ids(name):
                 con.execute("UPDATE encounters SET note = ? WHERE id = ?", (fix["note"], eid))
-        for key, col in (("atlas", "atlas_drops"), ("tree", "tree_lifeforce"), ("lf_dup", "lifeforce_dup"),
-                         ("fauna_dup", "fauna_dup"), ("white", "white_map")):
+        for key, col in (("atlas", "atlas_drops"), ("tree", "tree_lifeforce"), ("white", "white_map")):
             if fix.get(key) is not None:           # map setup corrected in the dashboard
                 for eid in ids(name):
                     con.execute(f"UPDATE encounters SET {col} = ? WHERE id = ?", (fix[key], eid))
@@ -143,7 +142,7 @@ def import_folder(shots, con, engine, fixes, quiet=False, reads_dir=None, label_
             parsed = apply_node_fix(mods.parse_tooltip(tt), fixes.get(f))
             cut = save_cut(reads_dir, f, img, (box[0], box[1], box[2], box[3] + 12)) if not from_cut else cut
             num = lambda k: float(r[k]) if r.get(k) not in (None, "") else None   # noqa: E731
-            cond = {"atlas": num("atlas"), "tree": num("tree"), "lf_dup": num("lf_dup"), "fauna_dup": num("fauna_dup"),
+            cond = {"atlas": num("atlas"), "tree": num("tree"),
                     "white": None if r.get("white") in (None, "") else r["white"] == "1",
                     "level": int(num("level")) if num("level") is not None else None}
             ev = tracker_core.NodeEvent(when, area, inst, parsed, res["wisps"], box, path, cut, cond)
@@ -176,7 +175,7 @@ def import_folder(shots, con, engine, fixes, quiet=False, reads_dir=None, label_
 def export_csv(con, path):
     mod_ids = [m[0] for m in mods.MODS if m[2] == "mod"]
     cols = ["id", "map", "status", "kind", "plant", "type", "rarity", "lifeforce_total", "lifeforce_stacks",
-            "rerolls", "chaos_spent", "atlas_drops", "tree_lifeforce", "lifeforce_dup", "fauna_dup", "white_map", "area_level",
+            "rerolls", "chaos_spent", "atlas_drops", "tree_lifeforce", "white_map", "area_level",
             "wisps_yellow", "wisps_blue", "wisps_purple"] + mod_ids + \
            ["rewards", "node_time", "result_time", "source", "note"]
     q = """SELECT e.*, m.name AS map_name FROM encounters e LEFT JOIN maps m ON m.id = e.map_id ORDER BY
@@ -193,8 +192,7 @@ def export_csv(con, path):
                    "lifeforce_total": e["lifeforce_total"],
                    "lifeforce_stacks": " + ".join(f"{a if a is not None else '?'} {c or ''}".strip() for a, c in st),
                    "rerolls": e["rerolls"], "chaos_spent": e["chaos_spent"], "atlas_drops": e["atlas_drops"],
-                   "tree_lifeforce": e["tree_lifeforce"], "lifeforce_dup": e["lifeforce_dup"], "fauna_dup": e["fauna_dup"],
-                   "white_map": e["white_map"], "area_level": e["area_level"],
+                   "tree_lifeforce": e["tree_lifeforce"], "white_map": e["white_map"], "area_level": e["area_level"],
                    "wisps_yellow": e["wisps_yellow_node"] or e["wisps_yellow_result"],
                    "wisps_blue": e["wisps_blue_node"] or e["wisps_blue_result"],
                    "wisps_purple": e["wisps_purple_node"] or e["wisps_purple_result"],

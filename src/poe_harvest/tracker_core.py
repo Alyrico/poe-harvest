@@ -41,7 +41,7 @@ class NodeEvent:
     box: tuple                 # tooltip x0, y0, x1, bottom (screen pixels inside the game window)
     screenshot: str = ""
     crop: str = ""
-    cond: dict | None = None    # the map setup at the time: {"atlas", "tree", "lf_dup", "fauna_dup", "white", "level"}
+    cond: dict | None = None    # the map setup at the time: {"atlas", "tree", "white", "level"}
 
 
 @dataclass
@@ -156,10 +156,9 @@ class EncounterTracker:
             self._drop_pending()      # a different plant: the earlier one never got a result
             cur = self.con.execute(
                 "INSERT INTO encounters (map_id, kind, status, source, node_time, atlas_drops, tree_lifeforce, "
-                "lifeforce_dup, fauna_dup, white_map, area_level) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)",
-                (map_id, p.kind, self.source, when, cond.get("atlas"), cond.get("tree"), cond.get("lf_dup"),
-                 cond.get("fauna_dup"), None if cond.get("white") is None else int(bool(cond.get("white"))),
-                 cond.get("level")))
+                "white_map, area_level) VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?)",
+                (map_id, p.kind, self.source, when, cond.get("atlas"), cond.get("tree"),
+                 None if cond.get("white") is None else int(bool(cond.get("white"))), cond.get("level")))
             eid = cur.lastrowid
             pend = self.pending = {"id": eid, "map_id": map_id, "kind": p.kind, "colour": p.colour, "cond": cond,
                                    "rerolls": 0, "first": {"mods": mods, "rewards": dict(p.rewards), "clean": clean,

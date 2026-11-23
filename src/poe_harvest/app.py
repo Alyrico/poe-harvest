@@ -262,8 +262,7 @@ class App:
                 win.set_start_with_windows(bool(self.settings["start_with_windows"]))
             except OSError:
                 log.exception("couldn't change 'start with Windows'")
-        if {"rich_soil", "starter_estimates", "atlas_drops", "tree_lifeforce", "lifeforce_dup", "fauna_dup",
-                "white_map", "t3_base", "league"} & set(changes):
+        if {"rich_soil", "starter_estimates", "atlas_drops", "tree_lifeforce", "white_map", "t3_base", "league"} & set(changes):
             with self.busy:
                 self.estimator.refit()
         self.refresh_tray()
@@ -299,7 +298,6 @@ class App:
         get 0% Atlas Drops, 0% tree lifeforce and 'white map' instead."""
         with self.busy:
             self.con.execute("UPDATE encounters SET atlas_drops = 0, tree_lifeforce = COALESCE(tree_lifeforce, 0), "
-                             "lifeforce_dup = COALESCE(lifeforce_dup, 0), fauna_dup = COALESCE(fauna_dup, 0), "
                              "white_map = COALESCE(white_map, 1) "
                              "WHERE atlas_drops IS NULL AND kind = 'flora' AND rarity = 'normal'")
             self.con.execute("UPDATE encounters SET atlas_drops = ? WHERE atlas_drops IS NULL AND kind != ''", (value,))

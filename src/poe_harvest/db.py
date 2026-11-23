@@ -54,8 +54,6 @@ ADDED_COLUMNS = [
     ("encounters", "price", "REAL"),            # chaos per lifeforce of the plant's type, at the result
     ("encounters", "atlas_drops", "REAL"),      # the Atlas Drops % set when the plant was read (app, 22 Nov)
     ("encounters", "tree_lifeforce", "REAL"),   # lifeforce quantity % from atlas passives, set at the time
-    ("encounters", "lifeforce_dup", "REAL"),    # atlas passives: % chance for lifeforce to be duplicated
-    ("encounters", "fauna_dup", "REAL"),        # atlas passives: % chance for Sacred Fauna to be duplicated
     ("encounters", "white_map", "INTEGER"),     # 1 = a white map (no map mods)
     ("encounters", "area_level", "INTEGER"),    # the map's level, from the game's log
 ]

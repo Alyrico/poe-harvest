@@ -125,7 +125,7 @@ def build_data():
             "result_cut": os.path.basename(last_res["crop"]) if last_res and last_res["crop"] else "",
             "node_reads": len(node), "problems": problems,
             "shown_est": e["est"], "shown_lo": e["est_lo"], "shown_hi": e["est_hi"], "price": e["price"],
-            "atlas": e["atlas_drops"], "tree": e["tree_lifeforce"], "lf_dup": e["lifeforce_dup"], "fauna_dup": e["fauna_dup"],
+            "atlas": e["atlas_drops"], "tree": e["tree_lifeforce"],
             "white": None if e["white_map"] is None else bool(e["white_map"]), "level": e["area_level"],
         })
     model_info = model_data(con, icons, enc)
@@ -133,7 +133,6 @@ def build_data():
     return {"generated": datetime.now().isoformat(timespec="seconds"), "flora_effect": modlib.flora_effect(),
             "version": __version__, "atlas_drops": S().get("atlas_drops"),
             "setup": {"atlas": S().get("atlas_drops"), "tree": S().get("tree_lifeforce") or 0,
-                      "lf_dup": S().get("lifeforce_dup") or 0, "fauna_dup": S().get("fauna_dup") or 0,
                       "white": bool(S().get("white_map")), "t3_base": S().get("t3_base")},
             "mods": out_mods, "rewards": rewards_known, "encounters": enc, "model": model_info, "icons": icons}
 
@@ -146,9 +145,7 @@ def model_data(con, icons, enc) -> dict:
         _prices = Prices(data_dir(), league=lambda: S().get("league"))
     _prices.refresh_soon()
     out = {"prices": _prices.info(), "show_from": mdl.SHOW_FROM, "rough_until": mdl.ROUGH_UNTIL}
-    setup = {"atlas": S().get("atlas_drops"), "tree": S().get("tree_lifeforce") or 0,
-             "lf_dup": S().get("lifeforce_dup") or 0, "fauna_dup": S().get("fauna_dup") or 0,
-             "white": bool(S().get("white_map"))}
+    setup = {"atlas": S().get("atlas_drops"), "tree": S().get("tree_lifeforce") or 0, "white": bool(S().get("white_map"))}
     defaults = dict(setup, white=False)
     m = mdl.choose(con, S().get("starter_estimates") or "auto", defaults=defaults)
     if m is None:
@@ -174,8 +171,7 @@ def model_data(con, icons, enc) -> dict:
     for y in (1000, 2000, 3000, 4000, 5000):
         e, lo, hi = m.wisp_effect(y)
         wisps.append({"yellow": y, "effect": e, "lo": lo, "hi": hi, "icon": m.icon(e, lo, hi)})
-    conditions = {k: m.condition_effect(k, v) for k, v in ((mdl.ATLAS, setup["atlas"]), (mdl.TREE, setup["tree"]),
-                                                           (mdl.LF_DUP, setup["lf_dup"]), (mdl.FAUNA_DUP, setup["fauna_dup"]))
+    conditions = {k: m.condition_effect(k, v) for k, v in ((mdl.ATLAS, setup["atlas"]), (mdl.TREE, setup["tree"]))
                   if v}
     conditions[mdl.WHITE] = m.condition_effect(mdl.WHITE, True)
     t3 = S().get("t3_base")
@@ -184,8 +180,6 @@ def model_data(con, icons, enc) -> dict:
     def cond_of(e):
         return {"atlas": e["atlas"] if e["atlas"] is not None else setup["atlas"],
                 "tree": e["tree"] if e["tree"] is not None else setup["tree"],
-                "lf_dup": e["lf_dup"] if e["lf_dup"] is not None else setup["lf_dup"],
-                "fauna_dup": e["fauna_dup"] if e["fauna_dup"] is not None else setup["fauna_dup"],
                 "white": bool(e["white"]) if e["white"] is not None else False}
 
     def decks_of(plant):

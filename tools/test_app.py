@@ -85,20 +85,6 @@ def atlas_straight_line_until_measured():
 
 
 @test
-def duplicate_chances_are_exact():
-    data = synthetic()
-    for p in data:
-        p.update(lf_dup=15, fauna_dup=6)          # the same on every plant: can't be measured, only applied
-    m = mdl.fit(data)
-    e = m.condition_effect(mdl.LF_DUP, 15)[0]
-    assert abs(e - 0.15) < 0.01, e
-    plant = dict(data[0])
-    with_dup = m.estimate(plant)[0]
-    without = m.estimate(dict(plant, lf_dup=0, fauna_dup=0))[0]
-    assert abs(with_dup / without - 1.15 * 1.06) < 0.02, with_dup / without
-
-
-@test
 def white_maps_are_measured():
     m = mdl.fit(synthetic(n=300, white_share=0.3))
     e = m.condition_effect(mdl.WHITE, True)[0]
@@ -213,11 +199,10 @@ def parse_a_white_plant():
 def settings_round_trip():
     d = tempfile.mkdtemp()
     s = settings_mod.Settings(os.path.join(d, "settings.json"))
-    s.update(atlas_drops=82.0, volume=40, tree_lifeforce=12.0, white_map=True, t3_base=5, lifeforce_dup=15, fauna_dup=6)
+    s.update(atlas_drops=82.0, volume=40, tree_lifeforce=12.0, white_map=True, t3_base=5)
     s2 = settings_mod.Settings(os.path.join(d, "settings.json"))
     assert s2["atlas_drops"] == 82.0 and s2["volume"] == 40
     assert s2["tree_lifeforce"] == 12.0 and s2["white_map"] is True and s2["t3_base"] == 5
-    assert s2["lifeforce_dup"] == 15 and s2["fauna_dup"] == 6
     assert s2["hotkeys"]["node"]["name"] == "Numpad 1"
 
 

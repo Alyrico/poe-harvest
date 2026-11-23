@@ -34,8 +34,6 @@ DEFAULTS = {
     "screenshots_dir": "",          # "" = <data folder>\screenshots
     "atlas_drops": None,            # the map's Atlas Drops %; asked on first start
     "tree_lifeforce": 0,            # % increased lifeforce quantity from atlas passives (Harvest nodes)
-    "lifeforce_dup": 0,             # atlas passives: "Lifeforce ... has X% chance to be Duplicated"
-    "fauna_dup": 0,                 # atlas passives: "Sacred Fauna ... have X% chance to be duplicated"
     "white_map": False,             # running white maps (no map mods) - e.g. a baseline test
     "t3_base": None,                # Tier 3 Sacred Fauna per plant without "additional Rare Tier 3" (counted)
     "hotkeys": {"node": NUMPAD_1, "result": NUMPAD_3},

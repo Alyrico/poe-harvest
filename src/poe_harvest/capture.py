@@ -23,7 +23,7 @@ from . import mods, popup_render, reader, tracker_core, win, zones
 
 log = logging.getLogger(__name__)
 LOG_FIELDS = ["time", "key", "file", "area", "left", "top", "width", "height", "cursor_x", "cursor_y",
-              "atlas", "tree", "lf_dup", "fauna_dup", "white", "level"]
+              "atlas", "tree", "white", "level"]
 
 
 def save_png(path, img):
@@ -106,7 +106,6 @@ class Capturer:
         keep_full = bool(self.settings["save_screenshots"])
         full_name = stamp + ".png" if keep_full else ""
         cond = {"atlas": self.settings.get("atlas_drops"), "tree": self.settings.get("tree_lifeforce") or 0,
-                "lf_dup": self.settings.get("lifeforce_dup") or 0, "fauna_dup": self.settings.get("fauna_dup") or 0,
                 "white": bool(self.settings.get("white_map")), "level": self.zones.level}
         t0 = time.time()
 
