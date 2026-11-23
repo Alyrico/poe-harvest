@@ -1,0 +1,25 @@
+PoE Harvest Tracker
+Copyright (c) 2026 Alyrico. All rights reserved.
+
+You may download, install and use this software free of charge.
+
+You may not, without written permission from the author:
+  - copy, modify, adapt or translate the software or its source code;
+  - distribute, publish, sublicense, rent or sell the software, its source code, or anything
+    made from them;
+  - remove or change this notice.
+
+The source code is published so it can be read and checked; that does not grant any of the
+rights above. GitHub's terms let users view and fork public repositories on GitHub itself; no
+other rights are granted.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR ITS USE.
+
+Path of Exile is a trademark of Grinding Gear Games. This software is not made, endorsed or
+supported by Grinding Gear Games.
+
+Third-party components bundled with the software are covered by their own licences; see
+THIRD_PARTY_NOTICES.txt.

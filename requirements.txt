@@ -1,0 +1,6 @@
+# The versions the reader was tested with (402/402 checks at 1080p, 1440p and 4K).
+numpy==2.5.3
+opencv-python-headless==5.0.0.93
+pillow==12.3.0
+mss==10.2.0
+pytesseract==0.3.13

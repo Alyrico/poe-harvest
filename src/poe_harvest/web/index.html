@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PoE Harvest Tracker</title>
+<style>
+/* ---- palette (validated: types pass all-pairs CVD + normal-vision checks in both modes) ---- */
+.viz-root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --raised: #ffffff;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10); --hover: rgba(11,11,11,0.04);
+  --primal: #2a78d6; --vivid: #eda100; --wild: #e87ba4; --specimen: #898781;
+  --pos: #2a78d6; --neg: #e34948; --neutral: #c3c2b7;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --good-text: #006300; --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --raised: #222221;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --hover: rgba(255,255,255,0.05);
+    --primal: #3987e5; --vivid: #c98500; --wild: #d55181; --specimen: #898781;
+    --pos: #3987e5; --neg: #e66767; --neutral: #383835;
+    --good-text: #0ca30c; --accent: #3987e5;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --raised: #222221;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10); --hover: rgba(255,255,255,0.05);
+  --primal: #3987e5; --vivid: #c98500; --wild: #d55181; --specimen: #898781;
+  --pos: #3987e5; --neg: #e66767; --neutral: #383835;
+  --good-text: #0ca30c; --accent: #3987e5;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body.viz-root { background: var(--page); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 24px; padding: 14px 28px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+nav { display: flex; gap: 4px; }
+nav button { background: none; border: 0; color: var(--text-2); font: inherit; padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+nav button:hover { background: var(--hover); }
+nav button[aria-selected="true"] { color: var(--text); background: var(--hover); font-weight: 600; }
+.badge { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 10px; background: var(--serious); color: #0b0b0b; font-size: 12px; font-weight: 600; text-align: center; }
+.badge[hidden] { display: none; }
+.spacer { flex: 1; }
+.meta { color: var(--muted); font-size: 13px; }
+.btn { font: inherit; border: 1px solid var(--border); background: var(--raised); color: var(--text); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { color: var(--critical); }
+main { padding: 24px 28px 60px; max-width: 1280px; margin: 0 auto; }
+section.tab { display: none; }
+section.tab.active { display: block; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; }
+.card h2 { font-size: 15px; margin: 0 0 2px; font-weight: 650; }
+.card .sub { color: var(--text-2); margin: 0 0 14px; font-size: 13px; }
+.tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 20px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.ranklist { list-style: none; margin: 0; padding: 0; }
+.ranklist li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13.5px; }
+.ranklist li .grow { flex: 1; }
+.icon { vertical-align: -3px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.tile .label { color: var(--text-2); font-size: 13px; }
+.tile .value { font-size: 26px; font-weight: 650; margin-top: 2px; }
+.tile .detail { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+select, input[type=number], input[type=text] { font: inherit; color: var(--text); background: var(--raised); border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; }
+input[type=number] { width: 90px; }
+label.inline { color: var(--text-2); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { text-align: left; color: var(--text-2); font-weight: 600; padding: 7px 8px; border-bottom: 1px solid var(--axis); white-space: nowrap; }
+td { padding: 7px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+tfoot td { border-top: 1px solid var(--axis); border-bottom: 0; }
+tbody tr.clickable { cursor: pointer; }
+tbody tr.clickable:hover { background: var(--hover); }
+.chip { display: inline-block; padding: 1px 7px; margin: 1px 3px 1px 0; border-radius: 6px; background: var(--hover); border: 1px solid var(--border); font-size: 12px; white-space: nowrap; color: var(--text-2); }
+.chip b { color: var(--text); font-weight: 600; }
+.typedot { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+.status { white-space: nowrap; font-size: 13px; }
+.status svg { vertical-align: -3px; margin-right: 4px; }
+.muted { color: var(--muted); }
+.note { color: var(--text-2); font-size: 13px; background: var(--hover); border-radius: 8px; padding: 9px 12px; margin-bottom: 14px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--text-2); font-size: 13px; margin: 4px 0 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tablelink { background: none; border: 0; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; padding: 0; }
+svg text { fill: var(--muted); font-size: 12px; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+svg text.lbl { fill: var(--text-2); font-size: 13px; }
+svg text.val { fill: var(--text); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tip { position: fixed; pointer-events: none; z-index: 50; background: var(--raised); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: 360px; display: none; }
+.tip b { font-weight: 600; }
+.tip .t2 { color: var(--text-2); }
+/* drawer */
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(720px, 96vw); background: var(--surface); border-left: 1px solid var(--border); box-shadow: -8px 0 30px rgba(0,0,0,.25); z-index: 20; overflow-y: auto; padding: 20px 24px 40px; display: none; }
+.drawer.open { display: block; }
+.drawer h3 { margin: 0 0 4px; font-size: 17px; }
+.drawer h4 { margin: 18px 0 8px; font-size: 14px; color: var(--text-2); font-weight: 600; }
+.drawer img { max-width: 100%; border-radius: 6px; border: 1px solid var(--border); display: block; margin-bottom: 6px; background: #000; }
+.drawer .editrow { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.drawer .editrow select { flex: 1; min-width: 0; }
+.problems { color: var(--critical); font-size: 13px; margin: 6px 0; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.msg { margin-top: 10px; font-size: 13px; }
+a { color: var(--accent); }
+input:disabled { opacity: .5; }
+.empty { color: var(--muted); padding: 18px 0; }
+@media (max-width: 1000px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body class="viz-root">
+<header>
+  <h1>PoE Harvest Tracker</h1>
+  <nav role="tablist">
+    <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+    <button role="tab" data-tab="mods">Mods</button>
+    <button role="tab" data-tab="estimates">Estimates</button>
+    <button role="tab" data-tab="rerolls">Rerolls</button>
+    <button role="tab" data-tab="encounters">Encounters</button>
+    <button role="tab" data-tab="review">Review <span id="reviewBadge" class="badge" hidden></span></button>
+    <button role="tab" data-tab="settings">Mod icons</button>
+  </nav>
+  <div class="spacer"></div>
+  <span class="meta" id="updated"></span>
+  <button class="btn" id="refresh">Refresh</button>
+  <button class="btn" id="theme" title="Light / dark">Theme</button>
+</header>
+
+<main>
+  <!-- ================= OVERVIEW ================= -->
+  <section class="tab active" id="tab-overview">
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <h2>Lifeforce per plant, by type</h2>
+      <p class="sub">Every completed plant as a dot; the line is each type's average. Specimens (bosses) are shown separately.
+        A ring marks a plant with <i>Items dropped by Sacred Fauna are Duplicated</i>, which doubles the lifeforce.</p>
+      <div id="stripChart"></div>
+      <button class="tablelink" data-table="stripTable">Show as a table</button>
+      <div id="stripTable" hidden></div>
+    </div>
+    <div class="two">
+      <div class="card"><h2>Best mods</h2><p class="sub">Most extra lifeforce vs an average mod in the same slot.</p><ul class="ranklist" id="bestMods"></ul></div>
+      <div class="card"><h2>Worst mods</h2><p class="sub">Least lifeforce vs an average mod in the same slot.</p><ul class="ranklist" id="worstMods"></ul></div>
+    </div>
+  </section>
+
+  <!-- ================= MODS ================= -->
+  <section class="tab" id="tab-mods">
+    <div class="card">
+      <h2>Mod effects (what the estimate uses)</h2>
+      <p class="sub" id="modelSub"></p>
+      <div class="legend"><span><svg width="14" height="10"><rect width="14" height="10" rx="2" fill="var(--pos)"/></svg>more lifeforce</span>
+        <span><svg width="14" height="10"><rect width="14" height="10" rx="2" fill="var(--neg)"/></svg>less lifeforce</span>
+        <span><svg width="22" height="10"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--muted)" stroke-width="1.5"/></svg>likely range (80%)</span>
+        <span id="iconLegend"></span></div>
+      <div id="modelChart"></div>
+      <button class="tablelink" data-table="modelTable">Show as a table</button>
+      <div id="modelTable" hidden></div>
+    </div>
+    <div class="card">
+      <h2>Without the model: lifeforce with vs without each mod</h2>
+      <p class="sub">The raw comparison from phase 3, for checking: plants <b>with</b> a mod against plants <b>without</b> it,
+        each against its type's average. Every plant has four mods, so a mod can look good here just because it often
+        comes with a good one - the chart above separates them.</p>
+      <p class="sub" id="effectSub"></p>
+      <div class="legend"><span><svg width="14" height="10"><rect width="14" height="10" rx="2" fill="var(--pos)"/></svg>more lifeforce</span>
+        <span><svg width="14" height="10"><rect width="14" height="10" rx="2" fill="var(--neg)"/></svg>less lifeforce</span>
+        <span><svg width="22" height="10"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--muted)" stroke-width="1.5"/></svg>likely range</span></div>
+      <div id="effectChart"></div>
+      <button class="tablelink" data-table="effectTable">Show as a table</button>
+      <div id="effectTable" hidden></div>
+    </div>
+    <div class="card">
+      <h2>Mod value vs lifeforce</h2>
+      <p class="sub">Does a bigger roll give more lifeforce? Each dot is a plant that had this mod.</p>
+      <div class="row">
+        <label class="inline">Show <select id="scatterMod"></select></label>
+      </div>
+      <div class="legend" id="typeLegend"></div>
+      <div id="scatterChart"></div>
+      <button class="tablelink" data-table="scatterTable">Show as a table</button>
+      <div id="scatterTable" hidden></div>
+    </div>
+    <div class="card">
+      <h2>Mods that came together</h2>
+      <p class="sub">Pairs of mods seen on the same plant at least 3 times, with how those plants did against their type's average.</p>
+      <div id="pairTable"></div>
+    </div>
+  </section>
+
+  <!-- ================= ESTIMATES ================= -->
+  <section class="tab" id="tab-estimates">
+    <div class="card">
+      <h2>How good are the estimates?</h2>
+      <p class="sub" id="accSub"></p>
+      <div class="legend" id="accLegend"></div>
+      <div id="accChart"></div>
+      <button class="tablelink" data-table="accTable">Show as a table</button>
+      <div id="accTable" hidden></div>
+    </div>
+    <div class="note">How the estimate works: lifeforce = a typical amount for the plant type × an effect for each mod ×
+      a yellow-wisp effect. It's fitted on your plants with each effect pulled gently towards zero, so a mod seen a few
+      times can't get a wild number. Effects are measured against an <b>average mod</b>, because a rare plant always has
+      four: what matters is whether a mod is better or worse than what would have been in its place.
+      Reroll advice: every roll you've read is a sample of what a fresh roll is worth; the popup says Reroll while the
+      expected gain from rerolling (at poe.ninja's price) is more than the chaos it costs.</div>
+  </section>
+
+  <!-- ================= REROLLS ================= -->
+  <section class="tab" id="tab-rerolls">
+    <div class="tiles" id="rerollTiles" style="grid-template-columns: repeat(5, 1fr)"></div>
+    <div class="card">
+      <h2>Chaos spent vs lifeforce gained, in chaos</h2>
+      <p class="sub" id="rerollChartSub"></p>
+      <div class="legend" id="rerollLegend"></div>
+      <div id="rerollChart"></div>
+    </div>
+    <div class="card">
+      <h2>Every rerolled plant</h2>
+      <p class="sub"><b>Extra</b> = the lifeforce it dropped minus what its <b>first roll</b> would likely have dropped (that
+        roll's estimate). <b>Without luck</b> = the final roll's estimate minus the first roll's - what the rerolling was
+        worth on average, whatever the drop did. Lifeforce is valued at the price when the plant was finished
+        (today's price for plants from before 22 Nov).</p>
+      <div id="rerollTable"></div>
+    </div>
+    <div class="note">For this to be right, press <b>Numpad 1 on every roll, including the first</b>: the first roll is the
+      baseline, and each read after it in the same map counts 1 chaos. If you rerolled without pressing, open the plant
+      (click its row) and correct the number of rerolls. Plants that never got a Numpad 3 result are left out.</div>
+    <div class="card">
+      <h2>Lifeforce prices</h2>
+      <p class="sub">From poe.ninja's currency exchange, refreshed about once an hour, for the popup's reroll advice.</p>
+      <div id="priceTable"></div>
+    </div>
+  </section>
+
+  <!-- ================= ENCOUNTERS ================= -->
+  <section class="tab" id="tab-encounters">
+    <div class="card">
+      <div class="row">
+        <label class="inline">Type <select id="fType"><option value="">All</option><option>Wild</option><option>Vivid</option><option>Primal</option></select></label>
+        <label class="inline">Status <select id="fStatus"><option value="">All</option></select></label>
+        <label class="inline">Map <select id="fMap"><option value="">All</option></select></label>
+        <label class="inline">Search <input type="text" id="fText" placeholder="plant name or mod"></label>
+        <span class="meta" id="encCount"></span>
+      </div>
+      <div id="encTable"></div>
+    </div>
+  </section>
+
+  <!-- ================= REVIEW ================= -->
+  <section class="tab" id="tab-review">
+    <div class="note">Encounters that aren't counted in the statistics yet. Click one to see what was read next to the
+      screenshot, correct it, and count it, or exclude it. Corrections are saved to <code>data\manual_fixes.json</code>
+      too, so a rebuild keeps them.</div>
+    <div class="card"><h2>To review</h2><p class="sub" id="reviewSub"></p><div id="reviewTable"></div></div>
+    <div class="card"><h2>Excluded</h2><p class="sub">Left out of every statistic. Click one to include it again.</p><div id="excludedTable"></div></div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="tab" id="tab-settings">
+    <div class="card">
+      <h2>Mod icons in the popup</h2>
+      <p class="sub">The popup marks each mod ✔ (raises lifeforce), ✘ (lowers it) or ~ (no clear effect, or under 3%),
+        from the data. Set a mod here to always show a particular icon, e.g. ✘ for a mod that makes the fight dangerous.
+        Ranges include your Rich Soil bonus (×<span id="effectMult"></span>).</p>
+      <div id="iconTable"></div>
+    </div>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer" aria-label="Encounter details"></aside>
+<div class="tip" id="tip"></div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------------------------
+const TYPES = ["Wild", "Vivid", "Primal"];
+const TYPE_VAR = { Wild: "--wild", Vivid: "--vivid", Primal: "--primal", Specimen: "--specimen" };
+const SHORT = {
+  spawn_rate: "Spawn rate", spawned: "Spawned", pack_size: "Pack size", lifeforce_quantity: "Lifeforce qty",
+  item_rarity: "Rarity", chance_magic: "Magic chance", chance_rare: "Rare chance", experience: "Experience",
+  extra_rare_t3: "+Rare T3", extra_magic_t2: "+Magic T2", wisps_on_fauna: "Wisps on fauna",
+  wisp_monsters_after: "Wisp monsters after", wisps_released: "Wisps released", all_colours: "All colours",
+  items_duplicated: "Duplicated", items_fully_linked: "Fully linked", items_max_sockets: "Max sockets",
+  item_reward: "Item reward line",
+};
+const WORDS = { item_reward: "Any item-reward line (Tier 3 drop: Stacked Deck / Thread / Currency / Uniques, fully linked, max sockets)" };
+const ICON_LABEL = { good: "✔ raises lifeforce", bad: "✘ lowers lifeforce", neutral: "~ no clear effect" };
+function iconSvg(kind, size = 14) {
+  // the popup's icons: shape carries the meaning, colour backs it up
+  const c = kind === "good" ? "var(--good)" : kind === "bad" ? "var(--critical)" : "var(--warning)";
+  const d = kind === "good" ? '<path d="M2.5 8.5l3.5 3.5 7.5-8.5" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+    : kind === "bad" ? '<path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"/>'
+    : '<path d="M2 9c2-3.5 4-3.5 6 0s4 3.5 6 0" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round"/>';
+  return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 16 16" aria-label="${esc(ICON_LABEL[kind] || kind)}">${d}</svg>`;
+}
+function modName(id) { return SHORT[id] || id; }
+function modWording(id) { return WORDS[id] || (DATA.modInfo[id] && DATA.modInfo[id].wording) || id; }
+const STATUS = {
+  ok:            { label: "Counted", role: "good", icon: "check" },
+  "needs review":{ label: "Needs review", role: "warning", icon: "alert" },
+  unreadable:    { label: "Amount unreadable", role: "serious", icon: "alert" },
+  incomplete:    { label: "No result", role: "muted", icon: "minus" },
+  dropped:       { label: "Dropped (no result)", role: "muted", icon: "minus" },
+  "no node":     { label: "No plant read", role: "serious", icon: "alert" },
+  pending:       { label: "In progress", role: "warning", icon: "alert" },
+  excluded:      { label: "Excluded", role: "muted", icon: "minus" },
+};
+let DATA = null, current = null;
+const HIDDEN = ["ok", "excluded", "dropped", "incomplete"];     // not in the review queue
+const $ = (s, r = document) => r.querySelector(s);
+const fmt = n => n == null ? "?" : Number(n).toLocaleString("en-US");
+const pct = (x, sign = true) => (sign && x > 0 ? "+" : "") + Math.round(x * 100) + "%";
+const css = v => getComputedStyle(document.body).getPropertyValue(v).trim();
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : NaN;
+const variance = a => { if (a.length < 2) return 0; const m = mean(a); return a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1); };
+const median = a => { if (!a.length) return NaN; const b = [...a].sort((x, y) => x - y); const h = b.length >> 1; return b.length % 2 ? b[h] : (b[h - 1] + b[h]) / 2; };
+
+function svgEl(tag, attrs = {}, parent) {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function niceStep(v) { if (!(v > 0)) return 1; const p = 10 ** Math.floor(Math.log10(v)); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+// axis from 0 to a round number just above `max`, with about n gridlines
+function niceDomain(max, n = 6) { const step = niceStep(max / n); return { max: Math.max(step, Math.ceil(max / step - 1e-9) * step), step }; }
+function ticks(d) { const out = []; for (let v = 0; v <= d.max + 1e-9; v += d.step) out.push(+v.toFixed(6)); return out; }
+const compact = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : fmt(n);
+function statusHtml(s) {
+  const st = STATUS[s] || { label: s, role: "muted", icon: "alert" };
+  const col = st.role === "muted" ? "var(--muted)" : `var(--${st.role})`;
+  const path = st.icon === "check" ? '<path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+    : st.icon === "minus" ? '<path d="M4 8h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+    : '<path d="M8 3.5v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="12" r="1.2" fill="currentColor"/>';
+  return `<span class="status"><svg width="16" height="16" viewBox="0 0 16 16" style="color:${col}">${path}</svg>${esc(st.label)}</span>`;
+}
+function typeMark(type, size = 10) {
+  // shape is a second channel next to colour: Wild = diamond, Vivid = square, Primal = circle, Specimen = ring
+  const c = `var(${TYPE_VAR[type] || "--specimen"})`, h = size / 2;
+  const shape = type === "Primal" ? `<circle cx="${h}" cy="${h}" r="${h}" fill="${c}"/>`
+    : type === "Vivid" ? `<rect width="${size}" height="${size}" rx="2" fill="${c}"/>`
+    : type === "Wild" ? `<path d="M${h} 0L${size} ${h}L${h} ${size}L0 ${h}Z" fill="${c}"/>`
+    : `<circle cx="${h}" cy="${h}" r="${h - 1.5}" fill="none" stroke="${c}" stroke-width="2"/>`;
+  return `<svg class="typedot" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${shape}</svg>`;
+}
+function drawMark(g, type, x, y, r, extra = {}) {
+  const c = `var(${TYPE_VAR[type] || "--specimen"})`;
+  const ring = { stroke: "var(--surface)", "stroke-width": 2 };
+  if (type === "Primal") return svgEl("circle", { cx: x, cy: y, r, fill: c, ...ring, ...extra }, g);
+  if (type === "Vivid") return svgEl("rect", { x: x - r, y: y - r, width: 2 * r, height: 2 * r, rx: 2, fill: c, ...ring, ...extra }, g);
+  if (type === "Wild") return svgEl("path", { d: `M${x} ${y - r - 1}L${x + r + 1} ${y}L${x} ${y + r + 1}L${x - r - 1} ${y}Z`, fill: c, ...ring, ...extra }, g);
+  return svgEl("circle", { cx: x, cy: y, r: r - 1, fill: "var(--surface)", stroke: c, "stroke-width": 2, ...extra }, g);
+}
+// ---- tooltip ----
+const tip = $("#tip");
+function showTip(ev, html) { tip.innerHTML = html; tip.style.display = "block"; moveTip(ev); }
+function moveTip(ev) { const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14; if (y + h > innerHeight - 8) y = ev.clientY - h - 14; tip.style.left = x + "px"; tip.style.top = y + "px"; }
+function hideTip() { tip.style.display = "none"; }
+function hoverable(node, html) { node.addEventListener("mouseenter", e => showTip(e, html)); node.addEventListener("mousemove", moveTip); node.addEventListener("mouseleave", hideTip); }
+function modChips(e, max = 99) {
+  const parts = Object.entries(e.mods).slice(0, max).map(([k, v]) => `<span class="chip">${esc(SHORT[k] || k)}${v != null ? " <b>" + fmt(v) + "</b>" : ""}</span>`);
+  for (const [k, v] of Object.entries(e.rewards)) parts.push(`<span class="chip">${esc(SHORT[k] || k)}${v > 1 ? " <b>×" + v + "</b>" : ""}</span>`);
+  return parts.join("");
+}
+function encTip(e) {
+  return `<b>${esc(e.plant || "?")}</b> <span class="t2">· ${esc(e.type || e.kind)} · ${esc(e.map)}</span><br>` +
+    `Lifeforce <b>${fmt(e.lifeforce)}</b>${e.stacks.length > 1 ? " (" + e.stacks.map(s => fmt(s[0]) + " " + s[1]).join(" + ") + ")" : ""}` +
+    (e.rel != null ? ` <span class="t2">· ${pct(e.rel - 1)} vs ${esc(e.type)} average</span>` : "") +
+    (Object.keys(e.mods).length ? `<br><span class="t2">${Object.entries(e.mods).map(([k, v]) => esc(SHORT[k] || k) + (v != null ? " " + fmt(v) : "")).join(" · ")}</span>` : "");
+}
+
+// ---------------------------------------------------------------------------------------------
+// data
+// ---------------------------------------------------------------------------------------------
+async function load() {
+  const r = await fetch("/api/data", { cache: "no-store" });
+  DATA = await r.json();
+  prepare();
+  renderAll();
+  $("#updated").textContent = `v${DATA.version || "?"} · Atlas Drops ${DATA.atlas_drops != null ? DATA.atlas_drops + "%" : "not set"} · updated ` +
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function prepare() {
+  const E = DATA.encounters;
+  DATA.counted = E.filter(e => e.status === "ok" && e.lifeforce != null);
+  DATA.flora = DATA.counted.filter(e => e.kind === "flora" && TYPES.includes(e.type));
+  DATA.typeMean = {};
+  for (const t of TYPES) DATA.typeMean[t] = mean(DATA.flora.filter(e => e.type === t).map(e => e.lifeforce));
+  for (const e of E) e.rel = (e.kind === "flora" && DATA.typeMean[e.type] > 0 && e.lifeforce != null) ? e.lifeforce / DATA.typeMean[e.type] : null;
+  DATA.modInfo = Object.fromEntries(DATA.mods.map(m => [m.id, m]));
+}
+function renderAll() {
+  renderTiles(); renderStrip(); renderRanks();
+  renderModel(); renderEffects(); renderScatterOptions(); renderScatter(); renderPairs();
+  renderAccuracy(); renderRerolls(); renderPrices();
+  renderFilters(); renderEncounters(); renderReview(); renderIcons();
+  if (current != null) openDrawer(current, true);
+}
+
+// ---------------------------------------------------------------------------------------------
+// overview
+// ---------------------------------------------------------------------------------------------
+function renderTiles() {
+  const F = DATA.flora, C = DATA.counted, spec = C.filter(e => e.kind === "specimen");
+  const byColour = {};
+  for (const e of C) for (const [a, c] of e.stacks) if (a != null) byColour[c] = (byColour[c] || 0) + a;
+  const toReview = DATA.encounters.filter(e => !HIDDEN.includes(e.status)).length;
+  const done = DATA.encounters.filter(e => e.status === "ok");
+  const rer = done.reduce((s, e) => s + e.rerolls, 0), chaos = done.reduce((s, e) => s + e.chaos, 0);
+  const M = DATA.model, RR = (M && M.rerolls) || [];
+  const priced = RR.filter(r => r.net != null), netChaos = priced.length ? priced.reduce((s, r) => s + r.net, 0) : null;
+  const tiles = [
+    ["Plants logged", fmt(F.length), spec.length ? `+ ${spec.length} Specimen${spec.length > 1 ? "s" : ""}` : "&nbsp;"],
+    ["Lifeforce collected", fmt(C.reduce((s, e) => s + e.lifeforce, 0)), TYPES.filter(t => byColour[t]).map(t => `${compact(byColour[t])} ${t}`).join(" · ")],
+    ["Average per plant", fmt(Math.round(mean(F.map(e => e.lifeforce)))), "median " + fmt(Math.round(median(F.map(e => e.lifeforce))))],
+    ["Estimates", M && M.fitted && M.typical_error != null ? "±" + Math.round(M.typical_error * 100) + "%" : M && M.fitted ? "starter" : "—",
+      M && M.fitted && M.typical_error != null ? `typical miss · type average alone ±${Math.round(M.baseline_error * 100)}%`
+        : M && M.fitted ? `from ${M.n_starter} of the author's plants until you have more of your own` : `from about ${M ? M.show_from : 30} plants`],
+    ["Rerolls", fmt(rer), `${fmt(chaos)} chaos` + (netChaos != null ? ` · net ${netChaos >= 0 ? "+" : ""}${netChaos.toFixed(1)}c` : "")],
+    ["To review", fmt(toReview), toReview ? statusHtml("needs review").replace("Needs review", "open the Review tab") : statusHtml("ok").replace("Counted", "all clear")],
+  ];
+  $("#tiles").innerHTML = tiles.map(([l, v, d]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="detail">${d}</div></div>`).join("");
+  const badge = $("#reviewBadge"); badge.hidden = !toReview; badge.textContent = toReview;
+}
+
+function renderStrip() {
+  const host = $("#stripChart"); host.innerHTML = "";
+  const rows = TYPES.filter(t => DATA.flora.some(e => e.type === t)).map(t => ({ key: t, label: t, items: DATA.flora.filter(e => e.type === t) }));
+  const spec = DATA.counted.filter(e => e.kind === "specimen");
+  if (spec.length) rows.push({ key: "Specimen", label: "Specimens", items: spec });
+  if (!rows.length) { host.innerHTML = '<p class="empty">No completed plants yet.</p>'; return; }
+  const W = host.clientWidth || 900, L = 96, R = 120, T = 10, rowH = 58, B = 46;
+  const H = T + rows.length * rowH + B;
+  const dom = niceDomain(Math.max(...rows.flatMap(r => r.items.map(e => e.lifeforce))) * 1.03, 7), max = dom.max;
+  const x = v => L + (v / max) * (W - L - R);
+  const svg = svgEl("svg", { width: W, height: H, role: "img", "aria-label": "Lifeforce per plant by type" }, host);
+  for (const t of ticks(dom)) {
+    svgEl("line", { x1: x(t), x2: x(t), y1: T, y2: H - B, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    svgEl("text", { x: x(t), y: H - B + 18, "text-anchor": "middle" }, svg).textContent = fmt(t);
+  }
+  rows.forEach((row, i) => {
+    const cy = T + i * rowH + rowH / 2;
+    svgEl("text", { x: L - 14, y: cy + 4, "text-anchor": "end", class: "lbl" }, svg).textContent = row.label;
+    const m = mean(row.items.map(e => e.lifeforce));
+    svgEl("line", { x1: x(m), x2: x(m), y1: cy - 20, y2: cy + 20, stroke: "var(--text-2)", "stroke-width": 2, "stroke-linecap": "round" }, svg);
+    const t2 = svgEl("text", { x: W - R + 12, y: cy + 4, class: "val" }, svg);
+    t2.textContent = `avg ${fmt(Math.round(m))}`;
+    svgEl("text", { x: W - R + 12, y: cy + 20 }, svg).textContent = `${row.items.length} plant${row.items.length > 1 ? "s" : ""}`;
+    row.items.forEach((e, j) => {
+      const jitter = ((j * 37) % 17 - 8) * 1.3;
+      const mk = drawMark(svg, row.key === "Specimen" ? "Specimen" : e.type, x(e.lifeforce), cy + jitter, 5.5, { style: "cursor:pointer" });
+      hoverable(mk, encTip(e));
+      mk.addEventListener("click", () => openDrawer(e.id));
+      // a hit target bigger than the mark
+      const hit = svgEl("circle", { cx: x(e.lifeforce), cy: cy + jitter, r: 10, fill: "transparent", style: "cursor:pointer" }, svg);
+      hoverable(hit, encTip(e)); hit.addEventListener("click", () => openDrawer(e.id));
+      if ("items_duplicated" in e.mods)      // Duplicated doubles the drop: ring it
+        svgEl("circle", { cx: x(e.lifeforce), cy: cy + jitter, r: 10, fill: "none", stroke: "var(--text-2)", "stroke-width": 1.5, "pointer-events": "none" }, svg);
+    });
+  });
+  svgEl("text", { x: L + (W - L - R) / 2, y: H - 4, "text-anchor": "middle" }, svg).textContent = "lifeforce from one plant";
+  $("#stripTable").innerHTML = `<table><thead><tr><th>Type</th><th class="num">Plants</th><th class="num">Average</th><th class="num">Median</th><th class="num">Lowest</th><th class="num">Highest</th></tr></thead><tbody>` +
+    rows.map(r => { const v = r.items.map(e => e.lifeforce); return `<tr><td>${typeMark(r.key)}${r.label}</td><td class="num">${v.length}</td><td class="num">${fmt(Math.round(mean(v)))}</td><td class="num">${fmt(Math.round(median(v)))}</td><td class="num">${fmt(Math.min(...v))}</td><td class="num">${fmt(Math.max(...v))}</td></tr>`; }).join("") + "</tbody></table>";
+}
+
+// ---------------------------------------------------------------------------------------------
+// mods
+// ---------------------------------------------------------------------------------------------
+function modEffects() {
+  const F = DATA.flora.filter(e => e.rel != null);
+  const out = [];
+  for (const m of DATA.mods) {
+    if (m.kind !== "mod") continue;
+    const w = F.filter(e => m.id in e.mods).map(e => e.rel), o = F.filter(e => !(m.id in e.mods)).map(e => e.rel);
+    if (!w.length) { out.push({ id: m.id, n: 0, nw: o.length }); continue; }
+    const mw = mean(w), mo = mean(o);
+    const se = Math.sqrt(variance(w) / Math.max(w.length, 1) + variance(o) / Math.max(o.length, 1));
+    const eff = mw / mo - 1, half = 1.2816 * se / mo;
+    out.push({ id: m.id, n: w.length, nw: o.length, eff, lo: eff - half, hi: eff + half, mw, mo, few: w.length < 3 });
+  }
+  return out.sort((a, b) => (b.n ? b.eff : -9) - (a.n ? a.eff : -9));
+}
+function renderEffects() {
+  const host = $("#effectChart"); host.innerHTML = "";
+  const all = modEffects(), rows = all.filter(r => r.n > 0), unseen = all.filter(r => !r.n);
+  $("#effectSub").textContent = `${DATA.flora.length} completed plants. Mods seen on fewer than 3 plants are greyed out.` +
+    (unseen.length ? ` Not seen yet: ${unseen.map(r => SHORT[r.id]).join(", ")}.` : "");
+  if (!rows.length) { host.innerHTML = '<p class="empty">No completed plants yet.</p>'; return; }
+  drawDiverging(host, rows.map(r => ({ label: modName(r.id), n: r.n, eff: r.eff, lo: r.lo, hi: r.hi, few: r.few,
+    tip: `<b>${esc(modWording(r.id))}</b><br>With it: ${r.n} plants, average ${pct(r.mw - 1)} vs their type<br>Without: ${r.nw} plants, ${pct(r.mo - 1)}<br><span class="t2">Likely range of the difference: ${pct(r.lo)} to ${pct(r.hi)}</span>` })),
+    { zero: "type average", aria: "Lifeforce with vs without each mod" });
+  $("#effectTable").innerHTML = `<table><thead><tr><th>Mod</th><th class="num">Plants with</th><th class="num">With vs type avg</th><th class="num">Without vs type avg</th><th class="num">Difference</th><th class="num">Likely range</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td>${esc(modWording(r.id))}</td><td class="num">${r.n}</td><td class="num">${pct(r.mw - 1)}</td><td class="num">${pct(r.mo - 1)}</td><td class="num">${pct(r.eff)}</td><td class="num">${pct(r.lo)} to ${pct(r.hi)}</td></tr>`).join("") + "</tbody></table>";
+}
+
+// rows: [{label, n, eff, lo, hi, few, tip, icon?, gapBefore?}] - bars from zero, 80% whiskers
+function drawDiverging(host, rows, opt) {
+  const hasIcon = rows.some(r => r.icon);
+  const W = host.clientWidth || 900, L = 200 + (hasIcon ? 22 : 0), R = 70, T = 8, rowH = 30, B = 28, GAP = 18;
+  const H = T + rows.length * rowH + rows.filter(r => r.gapBefore).length * GAP + B;
+  // the scale follows mods seen on 3+ plants; a mod seen once or twice can't stretch it
+  const solid = rows.filter(r => !r.few);
+  const dom = niceDomain(Math.max(0.2, ...(solid.length ? solid : rows).map(r => Math.max(Math.abs(r.lo), Math.abs(r.hi), Math.abs(r.eff)))), 3);
+  const ext = dom.max;
+  const x = v => L + ((Math.max(-ext, Math.min(ext, v)) + ext) / (2 * ext)) * (W - L - R);
+  const svg = svgEl("svg", { width: W, height: H, role: "img", "aria-label": opt.aria }, host);
+  for (let k = -Math.round(ext / dom.step); k <= Math.round(ext / dom.step); k++) {
+    const v = k * dom.step;
+    svgEl("line", { x1: x(v), x2: x(v), y1: T, y2: H - B, stroke: k === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, svg);
+    svgEl("text", { x: x(v), y: H - B + 18, "text-anchor": "middle" }, svg).textContent = k === 0 ? opt.zero : pct(v);
+  }
+  let yoff = T;
+  rows.forEach((r, i) => {
+    if (r.gapBefore) {
+      yoff += GAP;
+      svgEl("line", { x1: 4, x2: W - R, y1: yoff - GAP / 2 + 2, y2: yoff - GAP / 2 + 2, stroke: "var(--grid)" }, svg);
+    }
+    const cy = yoff + rowH / 2, col = r.eff >= 0 ? "var(--pos)" : "var(--neg)";
+    yoff += rowH;
+    const g = svgEl("g", { opacity: r.few ? 0.45 : 1 }, svg);
+    svgEl("text", { x: L - (hasIcon ? 34 : 12), y: cy + 4, "text-anchor": "end", class: "lbl" }, g).textContent = r.label;
+    if (r.icon) {                                   // the popup's icon, in a column next to the axis
+      const ig = svgEl("g", { transform: `translate(${L - 28} ${cy - 8})` }, g);
+      ig.innerHTML = iconSvg(r.icon, 16).replace(/^<svg[^>]*>|<\/svg>$/g, "");
+    }
+    if (r.n != null) svgEl("text", { x: 4, y: cy + 4 }, g).textContent = `${r.n} plant${r.n === 1 ? "" : "s"}`;
+    const x0 = x(0), x1 = x(r.eff), bw = Math.max(2, Math.abs(x1 - x0)), bh = 14;
+    // bar anchored at zero, rounded only at the data end
+    const bx = Math.min(x0, x1), rr = Math.min(4, bw / 2);
+    const d = r.eff >= 0
+      ? `M${bx} ${cy - bh / 2}H${bx + bw - rr}Q${bx + bw} ${cy - bh / 2} ${bx + bw} ${cy - bh / 2 + rr}V${cy + bh / 2 - rr}Q${bx + bw} ${cy + bh / 2} ${bx + bw - rr} ${cy + bh / 2}H${bx}Z`
+      : `M${bx + bw} ${cy - bh / 2}H${bx + rr}Q${bx} ${cy - bh / 2} ${bx} ${cy - bh / 2 + rr}V${cy + bh / 2 - rr}Q${bx} ${cy + bh / 2} ${bx + rr} ${cy + bh / 2}H${bx + bw}Z`;
+    svgEl("path", { d, fill: col }, g);
+    svgEl("line", { x1: x(r.lo), x2: x(r.hi), y1: cy, y2: cy, stroke: "var(--muted)", "stroke-width": 1.5 }, g);
+    for (const v of [r.lo, r.hi]) {
+      if (Math.abs(v) <= ext) svgEl("line", { x1: x(v), x2: x(v), y1: cy - 4, y2: cy + 4, stroke: "var(--muted)", "stroke-width": 1.5 }, g);
+      else { const s = Math.sign(v), xe = x(v);          // off the scale: an arrow instead of a cap
+        svgEl("path", { d: `M${xe - 6 * s} ${cy - 4}L${xe} ${cy}L${xe - 6 * s} ${cy + 4}`, fill: "none", stroke: "var(--muted)", "stroke-width": 1.5 }, g); }
+    }
+    svgEl("text", { x: r.eff >= 0 ? Math.max(x(r.hi), x1) + 8 : Math.min(x(r.lo), x1) - 8, y: cy + 4, "text-anchor": r.eff >= 0 ? "start" : "end", class: "val" }, g).textContent = pct(r.eff);
+    const hit = svgEl("rect", { x: 0, y: cy - rowH / 2, width: W, height: rowH, fill: "transparent" }, g);
+    g.insertBefore(hit, g.firstChild);
+    hoverable(hit, r.tip);
+    hit.addEventListener("mouseenter", () => hit.setAttribute("fill", "var(--hover)"));
+    hit.addEventListener("mouseleave", () => hit.setAttribute("fill", "transparent"));
+  });
+}
+
+function stepText(e) {
+  if (e.per_step == null) return "";
+  const unit = e.step === 1 ? "per +1" : e.step === 1000 ? "per +1,000" : `per +${e.step} points`;
+  return `${pct(e.per_step)} ${unit}`;
+}
+function renderModel() {
+  const host = $("#modelChart"); host.innerHTML = "";
+  const M = DATA.model;
+  $("#iconLegend").innerHTML = ["good", "bad", "neutral"].map(k => `${iconSvg(k)} ${ICON_LABEL[k].slice(2)}`).join(" &nbsp; ");
+  if (!M || !M.fitted) { $("#modelSub").textContent = ""; host.innerHTML = `<p class="empty">The estimate needs about ${M ? M.show_from : 30} completed plants.</p>`; return; }
+  $("#modelSub").textContent = (M.mode === "starter" ? `Starter estimates: the author's ${M.n_starter} plants, adjusted by your ${M.n}. ` : `From ${M.n} plants. `) +
+    `Each mod at a typical roll, against an average mod in its place - a plant with four` +
+    ` average mods is the "typical" plant (${TYPES.map(t => `${t} ${fmt(Math.round(M.typical[t]))}`).join(", ")}` +
+    `${DATA.atlas_drops != null ? ` at ${DATA.atlas_drops}% Atlas Drops` : ""}).` +
+    ` Mods seen on fewer than 3 plants are greyed out.` + (M.rough ? ` Rough until ${M.rough_until} plants.` : "") +
+    (M.atlas_effect ? ` Atlas Drops ${DATA.atlas_drops}%: ×${(1 + M.atlas_effect[0]).toFixed(2)} vs 0%` +
+      (M.atlas_levels > 1 ? ` (measured from ${M.atlas_levels} different Atlas Drops values).` : ` (assumed a straight-line increase until you log plants at a different %).`) : "");
+  const eff = M.effects.filter(e => e.n > 0).sort((a, b) => b.effect - a.effect);
+  const rows = eff.map(e => ({ label: modName(e.id), n: e.n, eff: e.effect, lo: e.lo, hi: e.hi, few: e.n < 3, icon: e.icon,
+    tip: `<b>${esc(modWording(e.id))}</b>${e.typical_value ? ` <span class="t2">at ${fmt(Math.round(e.typical_value))}</span>` : ""}<br>` +
+         `${pct(e.effect)} vs an average mod <span class="t2">(likely ${pct(e.lo)} to ${pct(e.hi)})</span>` +
+         (e.per_step != null ? `<br>${stepText(e)}` : "") + `<br><span class="t2">Seen on ${e.n} plant${e.n === 1 ? "" : "s"} · popup icon: ${ICON_LABEL[e.icon]}${e.icon !== e.auto_icon ? " (set by you)" : ""}</span>` }));
+  const w = M.wisps.filter(x => x.yellow === 2000 || x.yellow === 4000);
+  w.forEach((x, i) => rows.push({ label: `Yellow wisps ${fmt(x.yellow)}`, n: i === 0 ? M.has_yellow : null, eff: x.effect, lo: x.lo, hi: x.hi,
+    few: M.has_yellow < 3, icon: x.icon, gapBefore: i === 0,
+    tip: `<b>${fmt(x.yellow)} yellow (Vivid) wisps in the map</b><br>${pct(x.effect)} vs no yellow wisps <span class="t2">(likely ${pct(x.lo)} to ${pct(x.hi)})</span><br><span class="t2">${M.has_yellow} plants were in maps with yellow wisps</span>` }));
+  drawDiverging(host, rows, { zero: "average mod", aria: "Each mod's effect on lifeforce" });
+  const unseen = M.effects.filter(e => !e.n).map(e => modName(e.id));
+  if (unseen.length) host.insertAdjacentHTML("beforeend", `<p class="muted">Not seen yet: ${unseen.join(", ")}.</p>`);
+  $("#modelTable").innerHTML = `<table><thead><tr><th>Mod</th><th class="num">Plants</th><th class="num">Effect at a typical roll</th><th class="num">Likely range</th><th class="num">Per step</th><th>Popup icon</th></tr></thead><tbody>` +
+    eff.map(e => `<tr><td>${esc(modWording(e.id))}</td><td class="num">${e.n}</td><td class="num">${pct(e.effect)}</td><td class="num">${pct(e.lo)} to ${pct(e.hi)}</td><td class="num">${stepText(e)}</td><td>${iconSvg(e.icon)} ${ICON_LABEL[e.icon].slice(2)}</td></tr>`).join("") +
+    M.wisps.map(x => `<tr><td>${fmt(x.yellow)} yellow wisps in the map</td><td class="num"></td><td class="num">${pct(x.effect)}</td><td class="num">${pct(x.lo)} to ${pct(x.hi)}</td><td></td><td>${iconSvg(x.icon)} ${ICON_LABEL[x.icon].slice(2)}</td></tr>`).join("") + "</tbody></table>";
+}
+function renderRanks() {
+  const M = DATA.model;
+  if (!M || !M.fitted) { $("#bestMods").innerHTML = $("#worstMods").innerHTML = `<li class="muted">Needs about ${M ? M.show_from : 30} plants.</li>`; return; }
+  const eff = M.effects.filter(e => e.n >= 3).sort((a, b) => b.effect - a.effect);
+  const li = e => `<li>${iconSvg(e.icon)}<span class="grow">${esc(modName(e.id))} <span class="muted">· ${e.n} plants</span></span><b>${pct(e.effect)}</b></li>`;
+  $("#bestMods").innerHTML = eff.slice(0, 5).map(li).join("");
+  $("#worstMods").innerHTML = eff.slice(-5).reverse().map(li).join("");
+}
+
+function renderScatterOptions() {
+  const sel = $("#scatterMod"), prev = sel.value;
+  const opts = DATA.mods.filter(m => m.kind === "mod" && m.range && DATA.flora.some(e => e.mods[m.id] != null))
+    .map(m => `<option value="${m.id}">${esc(SHORT[m.id])}</option>`);
+  opts.push('<option value="__yellow">Yellow wisps in the map</option>');
+  sel.innerHTML = opts.join("");
+  if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+  $("#typeLegend").innerHTML = TYPES.map(t => `<span>${typeMark(t)}${t}</span>`).join("");
+}
+function renderScatter() {
+  const host = $("#scatterChart"); host.innerHTML = "";
+  const id = $("#scatterMod").value; if (!id) return;
+  const yellow = id === "__yellow";
+  const pts = DATA.flora.filter(e => yellow ? e.wisps.yellow != null : e.mods[id] != null)
+    .map(e => ({ e, xv: yellow ? e.wisps.yellow : e.mods[id], yv: e.lifeforce }));
+  if (!pts.length) { host.innerHTML = '<p class="empty">No plants with this yet.</p>'; return; }
+  const W = host.clientWidth || 900, L = 64, R = 24, T = 12, B = 44, H = 340;
+  const rng = yellow ? null : DATA.modInfo[id].range;
+  let xmin = rng ? rng[0] : 0, xmax = rng ? rng[1] : niceDomain(Math.max(...pts.map(p => p.xv)) * 1.03 || 1).max;
+  if (xmax <= xmin) xmax = xmin + 1;
+  const ydom = niceDomain(Math.max(...pts.map(p => p.yv)) * 1.03, 5), ymax = ydom.max;
+  const x = v => L + ((v - xmin) / (xmax - xmin)) * (W - L - R), y = v => H - B - (v / ymax) * (H - T - B);
+  const svg = svgEl("svg", { width: W, height: H, role: "img", "aria-label": "Mod value vs lifeforce" }, host);
+  for (const t of ticks(ydom)) {
+    svgEl("line", { x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: "var(--grid)" }, svg);
+    svgEl("text", { x: L - 8, y: y(t) + 4, "text-anchor": "end" }, svg).textContent = fmt(t);
+  }
+  const span = xmax - xmin, xstep = niceStep(span / 6);
+  for (let v = Math.ceil(xmin / xstep) * xstep; v <= xmax + 1e-9; v += xstep) {
+    svgEl("line", { x1: x(v), x2: x(v), y1: H - B, y2: H - B + 4, stroke: "var(--axis)" }, svg);
+    svgEl("text", { x: x(v), y: H - B + 18, "text-anchor": "middle" }, svg).textContent = fmt(+v.toFixed(2));
+  }
+  svgEl("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: "var(--axis)" }, svg);
+  svgEl("text", { x: L + (W - L - R) / 2, y: H - 6, "text-anchor": "middle" }, svg).textContent =
+    yellow ? "yellow wisps in the map" : (DATA.modInfo[id].wording.replace("#", "…") + (rng ? `  (possible ${fmt(rng[0])}–${fmt(rng[1])})` : ""));
+  svgEl("text", { x: 14, y: T + 4, transform: `rotate(-90 14 ${T + 4})`, "text-anchor": "end" }, svg).textContent = "lifeforce";
+  for (const p of pts) {
+    const mk = drawMark(svg, p.e.type, x(p.xv), y(p.yv), 5.5, { style: "cursor:pointer" });
+    const hit = svgEl("circle", { cx: x(p.xv), cy: y(p.yv), r: 11, fill: "transparent", style: "cursor:pointer" }, svg);
+    for (const n of [mk, hit]) { hoverable(n, encTip(p.e)); n.addEventListener("click", () => openDrawer(p.e.id)); }
+  }
+  $("#scatterTable").innerHTML = `<table><thead><tr><th>Plant</th><th>Type</th><th class="num">${yellow ? "Yellow wisps" : esc(SHORT[id])}</th><th class="num">Lifeforce</th></tr></thead><tbody>` +
+    pts.sort((a, b) => a.xv - b.xv).map(p => `<tr><td>${esc(p.e.plant)}</td><td>${typeMark(p.e.type)}${p.e.type}</td><td class="num">${fmt(p.xv)}</td><td class="num">${fmt(p.yv)}</td></tr>`).join("") + "</tbody></table>";
+}
+function renderPairs() {
+  const F = DATA.flora.filter(e => e.rel != null), groups = {};
+  for (const e of F) {
+    const ids = Object.keys(e.mods).filter(k => DATA.modInfo[k] && DATA.modInfo[k].kind === "mod").sort();
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) (groups[ids[i] + "|" + ids[j]] ||= []).push(e);
+  }
+  const rows = Object.entries(groups).filter(([, v]) => v.length >= 3)
+    .map(([k, v]) => ({ k, n: v.length, rel: mean(v.map(e => e.rel)), med: median(v.map(e => e.lifeforce)) }))
+    .sort((a, b) => b.rel - a.rel);
+  $("#pairTable").innerHTML = !rows.length ? '<p class="empty">No pair seen 3 times yet.</p>' :
+    `<table><thead><tr><th>Mods</th><th class="num">Plants</th><th class="num">vs type average</th><th class="num">Median lifeforce</th></tr></thead><tbody>` +
+    rows.slice(0, 20).map(r => `<tr><td>${r.k.split("|").map(id => `<span class="chip">${esc(SHORT[id])}</span>`).join(" + ")}</td><td class="num">${r.n}</td><td class="num">${pct(r.rel - 1)}</td><td class="num">${fmt(Math.round(r.med))}</td></tr>`).join("") +
+    "</tbody></table>" + (rows.length > 20 ? `<p class="muted">…and ${rows.length - 20} more pairs.</p>` : "");
+}
+
+// ---------------------------------------------------------------------------------------------
+// estimates
+// ---------------------------------------------------------------------------------------------
+function renderAccuracy() {
+  const host = $("#accChart"); host.innerHTML = "";
+  const M = DATA.model;
+  const pts = DATA.flora.filter(e => e.est != null);
+  if (!M || !M.fitted || !pts.length) { $("#accSub").textContent = ""; host.innerHTML = `<p class="empty">The estimate needs about ${M ? M.show_from : 30} completed plants.</p>`; return; }
+  if (M.typical_error == null) { $("#accSub").textContent = ""; host.innerHTML = `<p class="empty">Accuracy is measured once you have 10 plants of your own (you have ${M.n}).</p>`; return; }
+  $("#accSub").innerHTML = `Each counted plant, estimated by a model that <b>never saw it</b> (fitted on all the others). ` +
+    `On the diagonal = spot on. Typically ${Math.round(M.typical_error * 100)}% off, against ${Math.round(M.baseline_error * 100)}% ` +
+    `for "just use the type's average". ${Math.round(M.coverage * 100)}% of plants landed inside their 80% range ` +
+    `(about 80% means the ranges are honest).` + (M.mode === "starter" ? ` Starter mode: the author's ${M.n_starter} plants are the starting point.` : "") +
+    (M.usable ? "" : " <b>Not used in the popup yet: it doesn't beat the type average.</b>");
+  $("#accLegend").innerHTML = TYPES.map(t => `<span>${typeMark(t)}${t}</span>`).join("") +
+    `<span><svg width="22" height="10"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--text-2)" stroke-width="1.5" stroke-dasharray="4 3"/></svg>estimate = actual</span>`;
+  const W = host.clientWidth || 900, L = 64, R = 24, T = 12, B = 44, H = 380;
+  const dom = niceDomain(Math.max(...pts.map(p => Math.max(p.est, p.lifeforce))) * 1.03, 6), max = dom.max;
+  const x = v => L + (v / max) * (W - L - R), y = v => H - B - (v / max) * (H - T - B);
+  const svg = svgEl("svg", { width: W, height: H, role: "img", "aria-label": "Estimate vs actual lifeforce" }, host);
+  for (const t of ticks(dom)) {
+    svgEl("line", { x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: "var(--grid)" }, svg);
+    svgEl("text", { x: L - 8, y: y(t) + 4, "text-anchor": "end" }, svg).textContent = fmt(t);
+    svgEl("text", { x: x(t), y: H - B + 18, "text-anchor": "middle" }, svg).textContent = fmt(t);
+  }
+  svgEl("line", { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: "var(--axis)" }, svg);
+  svgEl("line", { x1: x(0), y1: y(0), x2: x(max), y2: y(max), stroke: "var(--text-2)", "stroke-width": 1.5, "stroke-dasharray": "4 3" }, svg);
+  svgEl("text", { x: L + (W - L - R) / 2, y: H - 6, "text-anchor": "middle" }, svg).textContent = "estimate (from the other plants)";
+  svgEl("text", { x: 14, y: T + 4, transform: `rotate(-90 14 ${T + 4})`, "text-anchor": "end" }, svg).textContent = "actual lifeforce";
+  for (const e of pts) {
+    const tipHtml = encTip(e) + `<br>Estimate ${fmt(Math.round(e.est))} · actual ${pct(e.lifeforce / e.est - 1)}`;
+    const mk = drawMark(svg, e.type, x(e.est), y(e.lifeforce), 5.5, { style: "cursor:pointer" });
+    const hit = svgEl("circle", { cx: x(e.est), cy: y(e.lifeforce), r: 11, fill: "transparent", style: "cursor:pointer" }, svg);
+    for (const n of [mk, hit]) { hoverable(n, tipHtml); n.addEventListener("click", () => openDrawer(e.id)); }
+  }
+  $("#accTable").innerHTML = `<table><thead><tr><th>Plant</th><th>Type</th><th class="num">Estimate</th><th class="num">Actual</th><th class="num">Difference</th></tr></thead><tbody>` +
+    pts.slice().sort((a, b) => Math.abs(b.lifeforce / b.est - 1) - Math.abs(a.lifeforce / a.est - 1))
+      .map(e => `<tr class="clickable" data-id="${e.id}"><td>${esc(e.plant)}</td><td>${typeMark(e.type)}${e.type}</td><td class="num">${fmt(Math.round(e.est))}</td><td class="num">${fmt(e.lifeforce)}</td><td class="num">${pct(e.lifeforce / e.est - 1)}</td></tr>`).join("") + "</tbody></table>";
+  wireRows($("#accTable"));
+}
+function chaosText(v, digits = 1) { return v == null ? "?" : (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(digits) + "c"; }
+function lfText(v) { return v == null ? "?" : (v >= 0 ? "+" : "−") + fmt(Math.abs(Math.round(v))); }
+function renderRerolls() {
+  const M = DATA.model, byId = Object.fromEntries(DATA.encounters.map(e => [e.id, e]));
+  const R = ((M && M.rerolls) || []).slice().sort((a, b) => (byId[a.id].node_time || "").localeCompare(byId[b.id].node_time || ""));
+  const priced = R.filter(r => r.net != null);
+  const sum = (arr, k) => arr.reduce((s, r) => s + (r[k] || 0), 0);
+  const spent = sum(R, "chaos"), worth = sum(priced, "worth"), net = sum(priced, "net");
+  const expPriced = R.filter(r => r.expected_net != null), expNet = sum(expPriced, "expected_net");
+  const byColour = {}; for (const r of R) if (r.extra != null) byColour[r.type] = (byColour[r.type] || 0) + r.extra;
+  const tiles = [
+    ["Chaos spent rerolling", fmt(spent) + "c", `${fmt(sum(R, "rerolls"))} rerolls on ${R.length} plant${R.length === 1 ? "" : "s"}`],
+    ["Extra lifeforce", Object.keys(byColour).length ? Object.entries(byColour).map(([c, v]) => lfText(v)).join(" / ") : "—",
+      Object.keys(byColour).length ? Object.keys(byColour).join(" / ") + " vs the first rolls" : "vs the first rolls"],
+    ["Extra lifeforce worth", priced.length ? chaosText(worth) : "—", "at lifeforce prices"],
+    ["Net", priced.length ? chaosText(net) : "—", priced.length ? `${chaosText(worth / Math.max(spent, 1e-9)).replace("+", "")} of lifeforce per 1c spent` : "&nbsp;"],
+    ["Net without luck", expPriced.length ? chaosText(expNet) : "—", "from the estimates alone"],
+  ];
+  $("#rerollTiles").innerHTML = tiles.map(([l, v, d]) => `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="detail">${d}</div></div>`).join("");
+  renderRerollChart(priced, byId);
+  if (!R.length) { $("#rerollTable").innerHTML = '<p class="empty">No rerolled plants with a result yet.</p>'; return; }
+  const rows = R.map(r => { const e = byId[r.id];
+    const rollsHtml = r.rolls.map(x => `${esc(x.name || "?")}${x.est != null ? ` <b>${fmt(Math.round(x.est))}</b>` : ' <span class="muted">(not read cleanly)</span>'}`).join(" → ");
+    return `<tr class="clickable" data-id="${r.id}">
+      <td class="when">${esc((e.node_time || "").replace("T", " ").slice(5, 16))}</td><td>${esc(e.map)}</td>
+      <td>${typeMark(r.type)}${rollsHtml}${r.reads_missing ? ' <span class="muted">· not every roll was read</span>' : ""}</td>
+      <td class="num">${r.chaos}c</td>
+      <td class="num">${r.first != null ? fmt(Math.round(r.first)) : "?"}</td>
+      <td class="num">${fmt(r.actual)}</td>
+      <td class="num">${lfText(r.extra)}</td>
+      <td class="num">${r.worth != null ? chaosText(r.worth) : "?"}</td>
+      <td class="num"><b>${r.net != null ? chaosText(r.net) : "?"}</b></td>
+      <td class="num muted">${r.expected_net != null ? chaosText(r.expected_net) : ""}</td></tr>`; }).join("");
+  $("#rerollTable").innerHTML = `<table><thead><tr><th>When</th><th>Map</th><th>Rolls, with today's estimate</th><th class="num">Spent</th>
+    <th class="num">First roll est.</th><th class="num">Dropped</th><th class="num">Extra</th><th class="num">Worth</th><th class="num">Net</th><th class="num">Net without luck</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="3"><b>Total</b></td><td class="num"><b>${spent}c</b></td><td></td><td></td><td></td><td class="num"><b>${priced.length ? chaosText(worth) : ""}</b></td><td class="num"><b>${priced.length ? chaosText(net) : ""}</b></td><td class="num muted">${expPriced.length ? chaosText(expNet) : ""}</td></tr></tfoot></table>` +
+    (R.length < 10 ? `<p class="muted">With ${R.length} rerolled plant${R.length === 1 ? "" : "s"} the total is mostly luck - the "without luck" column settles sooner.</p>` : "");
+  wireRows($("#rerollTable"));
+}
+function renderRerollChart(R, byId) {
+  const host = $("#rerollChart"); host.innerHTML = "";
+  $("#rerollLegend").innerHTML = `<span><svg width="22" height="10"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--primal)" stroke-width="2"/></svg>lifeforce gained, in chaos (running total)</span>` +
+    `<span><svg width="22" height="10"><line x1="1" y1="5" x2="21" y2="5" stroke="var(--text-2)" stroke-width="2" stroke-dasharray="5 3"/></svg>chaos spent rerolling (running total)</span>`;
+  if (!R.length) { $("#rerollChartSub").textContent = ""; host.innerHTML = '<p class="empty">No rerolled plants with a result yet.</p>'; return; }
+  $("#rerollChartSub").textContent = "Each step is one rerolled plant, oldest first. Above the dashed line = rerolling has paid for itself so far.";
+  let cs = 0, cg = 0;
+  const pts = [{ i: 0, spent: 0, gained: 0 }].concat(R.map((r, i) => ({ i: i + 1, r, spent: (cs += r.chaos), gained: (cg += r.worth) })));
+  const W = host.clientWidth || 900, L = 64, Rr = 150, T = 14, B = 40, H = 300;
+  const lo = Math.min(0, ...pts.map(p => p.gained)), hi = Math.max(1, ...pts.map(p => Math.max(p.gained, p.spent)));
+  const step = niceStep((hi - lo) / 5), ymin = Math.floor(lo / step) * step, ymax = Math.ceil(hi * 1.05 / step) * step;
+  const x = i => L + (i / Math.max(pts.length - 1, 1)) * (W - L - Rr), y = v => H - B - ((v - ymin) / (ymax - ymin)) * (H - T - B);
+  const svg = svgEl("svg", { width: W, height: H, role: "img", "aria-label": "Chaos spent vs lifeforce gained from rerolls" }, host);
+  for (let v = ymin; v <= ymax + 1e-9; v += step) {
+    svgEl("line", { x1: L, x2: W - Rr, y1: y(v), y2: y(v), stroke: Math.abs(v) < 1e-9 ? "var(--axis)" : "var(--grid)" }, svg);
+    svgEl("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end" }, svg).textContent = (Math.abs(v) < 1e-9 ? "0" : (v > 0 ? "" : "−") + fmt(Math.abs(+v.toFixed(2)))) + "c";
+  }
+  svgEl("text", { x: L + (W - L - Rr) / 2, y: H - 8, "text-anchor": "middle" }, svg).textContent = "rerolled plants, oldest first";
+  const path = k => pts.map((p, j) => (j ? `H${x(p.i)}V${y(p[k])}` : `M${x(p.i)} ${y(p[k])}`)).join("");
+  svgEl("path", { d: path("spent"), fill: "none", stroke: "var(--text-2)", "stroke-width": 2, "stroke-dasharray": "5 3" }, svg);
+  svgEl("path", { d: path("gained"), fill: "none", stroke: "var(--primal)", "stroke-width": 2 }, svg);
+  const lastP = pts[pts.length - 1];
+  svgEl("text", { x: W - Rr + 10, y: y(lastP.gained) + 4, class: "val" }, svg).textContent = `${chaosText(lastP.gained)} gained`;
+  svgEl("text", { x: W - Rr + 10, y: y(lastP.spent) + (Math.abs(y(lastP.spent) - y(lastP.gained)) < 16 ? 20 : 4), class: "val" }, svg).textContent = `${fmt(lastP.spent)}c spent`;
+  for (const p of pts.slice(1)) {
+    const e = byId[p.r.id];
+    const tip = `<b>${esc(p.r.rolls.map(x => x.name).join(" → "))}</b> <span class="t2">· ${esc(e.map)}</span><br>` +
+      `${p.r.chaos}c spent · first roll ≈ ${fmt(Math.round(p.r.first))} · dropped ${fmt(p.r.actual)}<br>` +
+      `Extra ${lfText(p.r.extra)} ${p.r.type} ≈ ${chaosText(p.r.worth)} · net ${chaosText(p.r.net)}<br>` +
+      `<span class="t2">Running total: ${chaosText(p.gained)} gained for ${fmt(p.spent)}c</span>`;
+    const mk = svgEl("circle", { cx: x(p.i), cy: y(p.gained), r: 5, fill: "var(--primal)", stroke: "var(--surface)", "stroke-width": 2, style: "cursor:pointer" }, svg);
+    const hit = svgEl("rect", { x: x(p.i) - 14, y: T, width: 28, height: H - T - B, fill: "transparent", style: "cursor:pointer" }, svg);
+    for (const n of [mk, hit]) { hoverable(n, tip); n.addEventListener("click", () => openDrawer(p.r.id)); }
+  }
+}
+function renderPrices() {
+  const P = (DATA.model && DATA.model.prices) || {};
+  const pr = P.prices || {};
+  if (!Object.keys(pr).length) { $("#priceTable").innerHTML = `<p class="empty">No prices yet${P.error ? ` (${esc(P.error)})` : " - fetching from poe.ninja"}. The popup leaves out the reroll advice until they arrive.</p>`; return; }
+  $("#priceTable").innerHTML = `<table><thead><tr><th>Lifeforce</th><th class="num">Chaos each</th><th class="num">Per chaos</th><th class="num">One reroll costs</th></tr></thead><tbody>` +
+    ["Wild", "Vivid", "Primal", "Sacred"].filter(c => pr[c]).map(c => `<tr><td>${c === "Sacred" ? "" : typeMark(c)}${c}</td><td class="num">${pr[c] < 1 ? pr[c].toFixed(4) : pr[c].toFixed(2)}</td><td class="num">${pr[c] < 1 ? fmt(Math.round(1 / pr[c])) : (1 / pr[c]).toFixed(3)}</td><td class="num">${c === "Sacred" ? "" : "≈ " + fmt(Math.round(1 / pr[c])) + " lifeforce"}</td></tr>`).join("") +
+    `</tbody></table><p class="muted">League ${esc(P.league || "?")} · updated ${esc(P.fetched || "?")}${P.error ? ` · last try failed: ${esc(P.error)}` : ""}. ` +
+    `To use another league, put <code>{"league": "Hardcore Covens"}</code> in <code>data\\settings.json</code>.</p>`;
+}
+
+// ---------------------------------------------------------------------------------------------
+// encounters + review
+// ---------------------------------------------------------------------------------------------
+function renderFilters() {
+  const keep = id => $(id).value;
+  const s = keep("#fStatus"), m = keep("#fMap");
+  const statuses = [...new Set(DATA.encounters.map(e => e.status))];
+  $("#fStatus").innerHTML = '<option value="">All</option>' + statuses.map(x => `<option value="${esc(x)}">${esc((STATUS[x] || { label: x }).label)}</option>`).join("");
+  const maps = [...new Set(DATA.encounters.map(e => e.map))];
+  $("#fMap").innerHTML = '<option value="">All</option>' + maps.map(x => `<option>${esc(x)}</option>`).join("");
+  $("#fStatus").value = s; $("#fMap").value = m;
+}
+function encRows(list) {
+  if (!list.length) return '<p class="empty">Nothing here.</p>';
+  return `<table><thead><tr><th>When</th><th>Map</th><th>Plant</th><th>Mods</th><th class="num">Lifeforce</th><th class="num" title="What the model expects from this plant's mods, fitted without it">Estimate</th><th class="num">vs type avg</th><th class="num">Rerolls</th><th>Status</th></tr></thead><tbody>` +
+    list.map(e => `<tr class="clickable" data-id="${e.id}">
+      <td class="when">${esc((e.node_time || e.result_time || "").replace("T", " ").slice(5, 16))}</td>
+      <td>${esc(e.map)}</td>
+      <td>${e.kind ? typeMark(e.kind === "specimen" ? "Specimen" : e.type) : ""}${esc(e.plant || "—")}</td>
+      <td>${modChips(e)}</td>
+      <td class="num">${e.stacks.length ? e.stacks.map(s => fmt(s[0]) + (e.stacks.length > 1 || s[1] !== e.type ? ` <span class="muted">${esc(s[1] || "")}</span>` : "")).join(" + ") : "—"}</td>
+      <td class="num">${e.est != null ? fmt(Math.round(e.est)) : ""}</td>
+      <td class="num">${e.rel != null && e.status === "ok" ? pct(e.rel - 1) : ""}</td>
+      <td class="num">${e.rerolls || ""}</td>
+      <td>${statusHtml(e.status)}</td></tr>`).join("") + "</tbody></table>";
+}
+function wireRows(host) { host.querySelectorAll("tr.clickable").forEach(tr => tr.addEventListener("click", () => openDrawer(+tr.dataset.id))); }
+function renderEncounters() {
+  const t = $("#fType").value, s = $("#fStatus").value, m = $("#fMap").value, q = $("#fText").value.trim().toLowerCase();
+  const list = DATA.encounters.filter(e => (!t || e.type === t) && (s ? e.status === s : e.status !== "dropped") && (!m || e.map === m) &&
+    (!q || (e.plant || "").toLowerCase().includes(q) || Object.keys(e.mods).some(k => (SHORT[k] || k).toLowerCase().includes(q)))).slice().reverse();
+  const dropped = DATA.encounters.filter(e => e.status === "dropped").length;
+  $("#encCount").textContent = `${list.length} of ${DATA.encounters.length}` + (dropped && !s ? ` · ${dropped} dropped (no result) hidden - pick that status to see them` : "");
+  $("#encTable").innerHTML = encRows(list); wireRows($("#encTable"));
+}
+function renderReview() {
+  const open = DATA.encounters.filter(e => !HIDDEN.includes(e.status)).slice().reverse();
+  const ex = DATA.encounters.filter(e => e.status === "excluded").slice().reverse();
+  $("#reviewSub").textContent = open.length ? `${open.length} encounter${open.length > 1 ? "s" : ""} waiting.` : "Nothing to review - every encounter is counted or excluded.";
+  $("#reviewTable").innerHTML = encRows(open); wireRows($("#reviewTable"));
+  $("#excludedTable").innerHTML = encRows(ex); wireRows($("#excludedTable"));
+}
+
+// ---------------------------------------------------------------------------------------------
+// drawer: details + corrections
+// ---------------------------------------------------------------------------------------------
+function modOptions(selected, kind = "mod") {
+  const list = kind === "reward" ? DATA.rewards.map(r => ({ id: r.id.slice(7), label: r.id.slice(7) }))
+    : DATA.mods.filter(m => m.kind === "mod" || m.kind === "reward").map(m => ({ id: m.id, label: SHORT[m.id] || m.id }));
+  return list.map(o => `<option value="${esc(o.id)}"${o.id === selected ? " selected" : ""}>${esc(o.label)}</option>`).join("");
+}
+function modRow(id = "", val = "") {
+  const r = DATA.modInfo[id] && DATA.modInfo[id].range;
+  return `<div class="editrow" data-kind="mod"><select>${modOptions(id)}</select><input type="number" value="${val ?? ""}" placeholder="${r ? r[0] + "–" + r[1] : "—"}"${r ? "" : " disabled"}><button class="btn" data-del>✕</button></div>`;
+}
+function syncModRow(row) {                 // the number box follows the chosen mod
+  const r = DATA.modInfo[$("select", row).value]?.range, inp = $("input", row);
+  inp.disabled = !r; inp.placeholder = r ? r[0] + "–" + r[1] : "—"; if (!r) inp.value = "";
+}
+function rewardRow(item = "", count = 1) {
+  return `<div class="editrow" data-kind="reward"><select>${modOptions(item, "reward")}</select><input type="number" value="${count}" min="1"><button class="btn" data-del>✕</button></div>`;
+}
+function stackRow(a = "", c = "Wild") {
+  return `<div class="editrow" data-kind="stack"><input type="number" value="${a ?? ""}" placeholder="amount" style="width:120px"><select>${["Wild", "Vivid", "Primal", "Sacred"].map(t => `<option${t === c ? " selected" : ""}>${t}</option>`).join("")}</select><button class="btn" data-del>✕</button></div>`;
+}
+function openDrawer(id, keepScroll = false) {
+  const e = DATA.encounters.find(x => x.id === id); if (!e) { closeDrawer(); return; }
+  current = id;
+  const d = $("#drawer"), top = d.scrollTop;
+  const img = (kind, name, alt) => name ? `<img src="/img/${kind}/${encodeURIComponent(name)}" alt="${esc(alt)}" loading="lazy">` : "";
+  const realMods = Object.entries(e.mods).filter(([k]) => DATA.modInfo[k]);
+  d.innerHTML = `
+    <div class="row" style="justify-content:space-between"><h3>${e.kind ? typeMark(e.kind === "specimen" ? "Specimen" : e.type, 12) : ""}${esc(e.plant || "No plant read")}</h3><button class="btn" id="dClose">Close</button></div>
+    <div class="meta">${esc(e.map)} · ${esc((e.node_time || e.result_time || "").replace("T", " "))} · ${statusHtml(e.status)}${e.rerolls ? ` · ${e.rerolls} reroll${e.rerolls > 1 ? "s" : ""}` : ""}</div>
+    ${e.problems.length ? `<div class="problems">${e.problems.map(p => "• " + esc(p)).join("<br>")}</div>` : ""}
+    ${e.note ? `<div class="meta">${esc(e.note)}</div>` : ""}
+    <h4>What was on screen</h4>
+    ${img("cut", e.node_cut, "plant tooltip") || (e.node_shot ? "" : '<p class="muted">No plant read.</p>')}
+    ${img("cut", e.result_cut, "lifeforce labels")}
+    <div class="meta">${[e.node_shot && `<a href="/img/shot/${encodeURIComponent(e.node_shot)}" target="_blank">full plant screenshot</a>`,
+      e.result_shot && `<a href="/img/shot/${encodeURIComponent(e.result_shot)}" target="_blank">full lifeforce screenshot</a>`].filter(Boolean).join(" · ")}</div>
+    ${e.kind ? `<h4>Plant type</h4><select id="dType">${TYPES.map(t => `<option${t === e.type ? " selected" : ""}>${t}</option>`).join("")}</select>` : ""}
+    ${e.kind === "flora" ? `<h4>Mods</h4><div id="dMods">${realMods.map(([k, v]) => modRow(k, v)).join("")}</div><button class="btn" id="dAddMod">+ mod</button>
+      <h4>Rewards</h4><div id="dRewards">${Object.entries(e.rewards).filter(([k]) => !DATA.modInfo[k]).map(([k, v]) => rewardRow(k, v)).join("")}</div><button class="btn" id="dAddReward">+ reward</button>` : ""}
+    ${e.kind === "flora" ? `<h4>Atlas Drops %</h4><div class="editrow"><input type="number" id="dAtlas" min="0" step="1" value="${e.atlas ?? ""}" style="width:90px"><span class="muted">the map's Atlas Drops when this plant was read</span></div>` : ""}
+    ${e.kind === "flora" ? `<h4>Rerolls</h4><div class="editrow"><input type="number" id="dRerolls" min="0" value="${e.rerolls}" style="width:90px"><span class="muted">1 chaos each · fix this if you rerolled without pressing Numpad 1</span></div>` : ""}
+    <h4>Lifeforce</h4><div id="dStacks">${(e.stacks.length ? e.stacks : [[null, e.type || "Wild"]]).map(s => stackRow(s[0], s[1])).join("")}</div><button class="btn" id="dAddStack">+ stack</button>
+    ${!e.kind ? '<p class="muted">Without a plant read there are no mods to count this against, so it can only be excluded.</p>' : ""}
+    <div class="actions">
+      ${e.kind ? `<button class="btn primary" id="dSave">${e.status === "ok" ? "Save correction" : "Save correction and count it"}</button>` : ""}
+      ${e.kind && e.status !== "ok" && e.status !== "excluded" ? '<button class="btn" id="dAccept">It\'s right - count it</button>' : ""}
+      ${e.status === "excluded" ? '<button class="btn" id="dInclude">Include again</button>' : '<button class="btn danger" id="dExclude">Exclude from statistics</button>'}
+    </div>
+    <div class="msg" id="dMsg"></div>`;
+  d.classList.add("open");
+  if (keepScroll) d.scrollTop = top;
+  d.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => b.parentElement.remove()));
+  d.querySelectorAll('.editrow[data-kind="mod"]').forEach(syncModRow);
+  d.onchange = ev => { const row = ev.target.closest('.editrow[data-kind="mod"]'); if (row && ev.target.tagName === "SELECT") syncModRow(row); };
+  const add = (btn, host, html) => { const b = $(btn, d); if (b) b.addEventListener("click", () => { $(host, d).insertAdjacentHTML("beforeend", html()); const last = $(host, d).lastElementChild; $("[data-del]", last).addEventListener("click", () => last.remove()); if (last.dataset.kind === "mod") syncModRow(last); }); };
+  add("#dAddMod", "#dMods", () => modRow()); add("#dAddReward", "#dRewards", () => rewardRow("Thread")); add("#dAddStack", "#dStacks", () => stackRow("", e.type || "Wild"));
+  $("#dClose", d).addEventListener("click", closeDrawer);
+  const btn = (sel, fn) => { const b = $(sel, d); if (b) b.addEventListener("click", fn); };
+  btn("#dSave", () => send({ id, action: "save", ...collect(e) }));
+  btn("#dAccept", () => send({ id, action: "accept" }));
+  btn("#dExclude", () => send({ id, action: "exclude" }));
+  btn("#dInclude", () => send({ id, action: "include" }));
+}
+function collect(e) {
+  const d = $("#drawer"), body = {};
+  if ($("#dType", d)) body.type = $("#dType", d).value;
+  if ($("#dMods", d)) {
+    body.mods = {}; body.rewards = {};
+    d.querySelectorAll('#dMods .editrow').forEach(r => { const k = $("select", r).value, v = $("input", r).value; body.mods[k] = v === "" ? null : +v; });
+    d.querySelectorAll('#dRewards .editrow').forEach(r => { body.rewards[$("select", r).value] = +$("input", r).value || 1; });
+  }
+  if ($("#dRerolls", d)) body.rerolls = $("#dRerolls", d).value;
+  if ($("#dAtlas", d) && $("#dAtlas", d).value !== "") body.atlas = $("#dAtlas", d).value;
+  body.stacks = [...d.querySelectorAll('#dStacks .editrow')].map(r => [$("input", r).value === "" ? null : +$("input", r).value, $("select", r).value]).filter(s => s[0] != null);
+  return body;
+}
+async function send(body) {
+  const msg = $("#dMsg"); msg.textContent = "Saving…";
+  try {
+    const r = await fetch(body.action === "icon" ? "/api/icon" : "/api/fix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!j.ok) { msg.innerHTML = `<span style="color:var(--critical)">${esc(j.error || "Couldn't save")}</span>`; return; }
+    await load();
+    const m2 = $("#dMsg"); if (m2) m2.innerHTML = `<span style="color:var(--good-text)">Saved.</span>`;
+  } catch (err) { msg.textContent = "Couldn't reach the dashboard - is its window still open?"; }
+}
+function closeDrawer() { current = null; $("#drawer").classList.remove("open"); }
+
+// ---------------------------------------------------------------------------------------------
+// mod icons
+// ---------------------------------------------------------------------------------------------
+function renderIcons() {
+  $("#effectMult").textContent = DATA.flora_effect;
+  const seen = {}; for (const e of DATA.flora) for (const k of [...Object.keys(e.mods), ...Object.keys(e.rewards)]) seen[k] = (seen[k] || 0) + 1;
+  const opts = [["auto", "Auto (from the data)"], ["good", "✔ always good"], ["bad", "✘ always bad"], ["neutral", "~ always neutral"]];
+  const auto = Object.fromEntries(((DATA.model && DATA.model.effects) || []).map(e => [e.id, e]));
+  const autoCell = id => { const e = auto[id] || (DATA.modInfo[id] && DATA.modInfo[id].kind === "reward" ? auto.item_reward : null);
+    return e && e.n ? `${iconSvg(e.auto_icon)} ${pct(e.effect)}` : '<span class="muted">not enough data</span>'; };
+  $("#iconTable").innerHTML = `<table><thead><tr><th>Mod</th><th>Type</th><th class="num">Possible values</th><th class="num">Seen on</th><th>From the data</th><th>Icon in the popup</th></tr></thead><tbody>` +
+    DATA.mods.map(m => `<tr><td>${esc(m.wording)}</td><td class="muted">${m.affix}${m.kind === "reward" ? " · item reward" : ""}</td>
+      <td class="num">${m.range ? fmt(m.range[0]) + "–" + fmt(m.range[1]) : "—"}</td><td class="num">${seen[m.id] || 0}</td><td>${autoCell(m.id)}</td>
+      <td><select data-icon="${m.id}">${opts.map(([v, l]) => `<option value="${v}"${m.icon === v ? " selected" : ""}>${l}</option>`).join("")}</select></td></tr>`).join("") +
+    (() => { const W = (DATA.model && DATA.model.wisps || []).find(x => x.yellow === 2000), cur = DATA.icons.yellow_wisps || "auto";
+      return `<tr><td>Yellow (Vivid) wisps in the map</td><td class="muted">map</td><td class="num">—</td><td class="num">${DATA.model && DATA.model.has_yellow || 0}</td>
+      <td>${W ? `${iconSvg(W.icon)} ${pct(W.effect)} <span class="muted">at 2,000</span>` : '<span class="muted">not enough data</span>'}</td>
+      <td><select data-icon="yellow_wisps">${opts.map(([v, l]) => `<option value="${v}"${cur === v ? " selected" : ""}>${l}</option>`).join("")}</select></td></tr>`; })() +
+    "</tbody></table>";
+  document.querySelectorAll("[data-icon]").forEach(s => s.addEventListener("change", async () => {
+    await fetch("/api/icon", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.dataset.icon, icon: s.value }) });
+  }));
+}
+
+// ---------------------------------------------------------------------------------------------
+// wiring
+// ---------------------------------------------------------------------------------------------
+document.querySelectorAll("nav [data-tab]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav [data-tab]").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("section.tab").forEach(s => s.classList.toggle("active", s.id === "tab-" + b.dataset.tab));
+  if (b.dataset.tab === "overview") renderStrip();
+  if (b.dataset.tab === "mods") { renderModel(); renderEffects(); renderScatter(); }
+  if (b.dataset.tab === "estimates") renderAccuracy();
+  if (b.dataset.tab === "rerolls") renderRerolls();
+}));
+document.querySelectorAll("[data-table]").forEach(b => b.addEventListener("click", () => {
+  const t = document.getElementById(b.dataset.table); t.hidden = !t.hidden; b.textContent = t.hidden ? "Show as a table" : "Hide the table";
+}));
+$("#scatterMod").addEventListener("change", renderScatter);
+for (const id of ["#fType", "#fStatus", "#fMap"]) $(id).addEventListener("change", renderEncounters);
+$("#fText").addEventListener("input", renderEncounters);
+$("#refresh").addEventListener("click", load);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+$("#theme").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("harvestTheme", document.documentElement.dataset.theme); } catch (_) {}
+});
+try { const t = localStorage.getItem("harvestTheme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+let resizeTimer; addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { renderStrip(); renderModel(); renderEffects(); renderScatter(); renderAccuracy(); renderRerolls(); }, 150); });
+addEventListener("focus", () => { if (current == null) load(); });
+load().catch(err => { document.querySelector("main").innerHTML = `<p class="empty">Couldn't load the data: ${esc(err)}</p>`; });
+</script>
+</body>
+</html>

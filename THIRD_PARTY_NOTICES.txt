@@ -1,0 +1,19 @@
+PoE Harvest Tracker includes the following third-party software, each under its own licence.
+Their licence texts are included with the installed app (Python's in the app folder, Tesseract's
+in the tesseract folder) and are available at the links below.
+
+Python 3.12            Python Software Foundation License       https://docs.python.org/3/license.html
+Tesseract OCR          Apache License 2.0                       https://github.com/tesseract-ocr/tesseract
+  (Windows build by UB-Mannheim; includes Leptonica and other libraries under their own licences:
+   https://github.com/UB-Mannheim/tesseract)
+OpenCV (opencv-python-headless)  Apache License 2.0             https://github.com/opencv/opencv-python
+NumPy                  BSD 3-Clause License                     https://github.com/numpy/numpy
+Pillow                 MIT-CMU License (HPND)                   https://github.com/python-pillow/Pillow
+python-mss             MIT License                              https://github.com/BoboTiG/python-mss
+pytesseract            Apache License 2.0                       https://github.com/madmaze/pytesseract
+Tcl/Tk (tkinter)       Tcl/Tk License (BSD-style)               https://www.tcl.tk/software/tcltk/license.html
+PyInstaller bootloader GPL 2.0 with the bootloader exception    https://pyinstaller.org/en/stable/license.html
+  (the exception allows distributing the bundled app under any licence)
+
+Lifeforce prices are fetched from poe.ninja (https://poe.ninja); mod value ranges were checked
+against poedb (https://poedb.tw).

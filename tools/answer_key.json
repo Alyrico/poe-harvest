@@ -1,0 +1,831 @@
+{
+ "_note": "Checked by eye against the screenshots (61 shots, 21 Nov). mods: id -> value (null for mods without a number). rewards: item -> count. wisps: a colour read as unknown (null) is acceptable; a wrong number is not.",
+ "2026-11-21_03-33-21-545_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Warped Growth",
+   "colour": "Wild",
+   "mods": {
+    "pack_size": 34,
+    "wisp_monsters_after": 76,
+    "lifeforce_quantity": 121
+   },
+   "rewards": {
+    "Stacked Deck": 1
+   }
+  },
+  "wisps": {}
+ },
+ "2026-11-21_03-34-20-974_result.png": {
+  "lifeforce": [
+   [
+    977,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_03-37-11-487_node.png": {
+  "tooltip": {
+   "kind": "specimen",
+   "rarity": "specimen",
+   "name": "Wild Specimen",
+   "colour": "Wild",
+   "mods": {},
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_03-37-39-163_result.png": {
+  "lifeforce": [
+   [
+    514,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_03-37-48-449_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Fertile Shrub",
+   "colour": "Wild",
+   "mods": {
+    "spawn_rate": 79,
+    "extra_rare_t3": 3,
+    "experience": 297
+   },
+   "rewards": {
+    "Thread": 1
+   }
+  },
+  "wisps": {}
+ },
+ "2026-11-21_03-38-09-852_result.png": {
+  "lifeforce": [
+   [
+    968,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_03-53-22-788_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Knotted Tree",
+   "colour": "Vivid",
+   "mods": {
+    "spawn_rate": 75,
+    "pack_size": 58,
+    "wisps_on_fauna": 4033
+   },
+   "rewards": {
+    "Thread": 3
+   }
+  },
+  "wisps": {}
+ },
+ "2026-11-21_03-53-43-702_result.png": {
+  "lifeforce": [
+   [
+    366,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_04-00-01-353_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Twisted Shrub",
+   "colour": "Primal",
+   "mods": {
+    "pack_size": 51,
+    "wisp_monsters_after": 70,
+    "item_rarity": 130,
+    "chance_rare": 142
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_04-00-34-613_result.png": {
+  "lifeforce": [
+   [
+    711,
+    "Primal"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_04-01-02-310_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Verdant Plant",
+   "colour": "Vivid",
+   "mods": {
+    "pack_size": 60,
+    "all_colours": null,
+    "lifeforce_quantity": 102,
+    "chance_rare": 78
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_04-01-19-722_result.png": {
+  "lifeforce": [
+   [
+    1223,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_04-11-12-948_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Knotted Growth",
+   "colour": "Wild",
+   "mods": {
+    "extra_rare_t3": 4,
+    "wisp_monsters_after": 61,
+    "lifeforce_quantity": 147,
+    "experience": 255
+   },
+   "rewards": {}
+  },
+  "wisps": {
+   "yellow": 2378,
+   "blue": 4571
+  }
+ },
+ "2026-11-21_04-13-26-125_result.png": {
+  "lifeforce": [
+   [
+    1092,
+    "Wild"
+   ]
+  ],
+  "wisps": {
+   "yellow": 2378,
+   "blue": 4571
+  }
+ },
+ "2026-11-21_04-33-24-630_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Snarled Brush",
+   "colour": "Wild",
+   "mods": {
+    "extra_magic_t2": 12,
+    "wisp_monsters_after": 81,
+    "experience": 252,
+    "items_duplicated": null
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_04-33-48-058_result.png": {
+  "lifeforce": [
+   [
+    746,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_04-34-28-746_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Knotted Growth",
+   "colour": "Vivid",
+   "mods": {
+    "spawn_rate": 102,
+    "extra_rare_t3": 3,
+    "lifeforce_quantity": 88,
+    "chance_rare": 99
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_04-34-45-578_result.png": {
+  "lifeforce": [
+   [
+    1254,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_04-37-19-567_result.png": {
+  "lifeforce": [
+   [
+    1418,
+    "Primal"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_04-38-37-004_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Misshapen Plant",
+   "colour": "Vivid",
+   "mods": {
+    "extra_magic_t2": 6,
+    "extra_rare_t3": 4,
+    "wisps_on_fauna": 3294,
+    "chance_magic": 148
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_04-38-58-142_result.png": {
+  "lifeforce": [
+   [
+    929,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_17-59-13-727_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Gnarled Plant",
+   "colour": "Wild",
+   "mods": {
+    "pack_size": 55,
+    "extra_rare_t3": 4,
+    "chance_magic": 85,
+    "experience": 235
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-00-42-966_result.png": {
+  "lifeforce": [
+   [
+    1315,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-06-51-327_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Verdant Vegetation",
+   "colour": "Wild",
+   "mods": {
+    "spawn_rate": 76,
+    "pack_size": 33,
+    "item_rarity": 83,
+    "experience": 300
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-07-21-575_result.png": {
+  "lifeforce": [
+   [
+    543,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-10-30-150_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Verdant Brush",
+   "colour": "Vivid",
+   "mods": {
+    "extra_magic_t2": 6,
+    "all_colours": null,
+    "chance_magic": 97,
+    "chance_rare": 79
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-10-48-300_result.png": {
+  "lifeforce": [
+   [
+    66,
+    "Primal"
+   ],
+   [
+    278,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-12-08-749_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Gnarled Vegetation",
+   "colour": "Wild",
+   "mods": {
+    "extra_rare_t3": 3,
+    "wisp_monsters_after": 111,
+    "wisps_on_fauna": 5832,
+    "chance_rare": 150
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-12-50-653_result.png": {
+  "lifeforce": [
+   [
+    585,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-13-53-184_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Verdant Oak",
+   "colour": "Vivid",
+   "mods": {
+    "pack_size": 37,
+    "extra_rare_t3": 6,
+    "experience": 241,
+    "chance_rare": 79
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-14-11-742_result.png": {
+  "lifeforce": [
+   [
+    1448,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-22-03-831_node.png": {
+  "tooltip": null,
+  "wisps": {},
+  "_note": "tooltip covered by a boss bar and a monster's mod list - not readable, re-pressed 4s later"
+ },
+ "2026-11-21_18-22-07-415_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Untamed Brush",
+   "colour": "Wild",
+   "mods": {
+    "spawn_rate": 84,
+    "spawned": 58,
+    "item_rarity": 96,
+    "chance_rare": 82
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-22-31-260_result.png": {
+  "lifeforce": [
+   [
+    null,
+    null
+   ]
+  ],
+  "wisps": {},
+  "_note": "amount hidden under a monster's mod list - should be reported as unreadable"
+ },
+ "2026-11-21_18-27-27-736_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Tangled Oak",
+   "colour": "Vivid",
+   "mods": {
+    "spawned": 46,
+    "wisps_released": 72,
+    "lifeforce_quantity": 100,
+    "chance_rare": 141
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-28-05-102_result.png": {
+  "lifeforce": [
+   [
+    685,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-28-23-608_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Untamed Growth",
+   "colour": "Primal",
+   "mods": {
+    "pack_size": 52,
+    "spawned": 48,
+    "item_rarity": 109,
+    "lifeforce_quantity": 81
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-28-42-356_result.png": {
+  "lifeforce": [
+   [
+    1301,
+    "Primal"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-33-41-153_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Tangled Growth",
+   "colour": "Wild",
+   "mods": {
+    "pack_size": 60,
+    "extra_rare_t3": 3,
+    "wisps_on_fauna": 3178
+   },
+   "rewards": {
+    "Currency Items": 3
+   }
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-34-12-065_result.png": {
+  "lifeforce": [
+   [
+    1322,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-35-52-352_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Weathered Growth",
+   "colour": "Primal",
+   "mods": {
+    "pack_size": 45,
+    "wisp_monsters_after": 75,
+    "lifeforce_quantity": 81,
+    "experience": 162
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-36-10-770_result.png": {
+  "lifeforce": [
+   [
+    923,
+    "Primal"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-36-53-804_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Twisted Oak",
+   "colour": "Vivid",
+   "mods": {
+    "extra_rare_t3": 3,
+    "wisps_released": 51,
+    "item_rarity": 133,
+    "chance_rare": 138
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-37-25-314_result.png": {
+  "lifeforce": [
+   [
+    737,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-42-17-568_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Fertile Shrub",
+   "colour": "Wild",
+   "mods": {
+    "pack_size": 48,
+    "extra_rare_t3": 6,
+    "wisps_on_fauna": 5433,
+    "chance_magic": 91
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-42-46-865_result.png": {
+  "lifeforce": [
+   [
+    1631,
+    "Wild"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_18-44-17-735_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Verdant Shrub",
+   "colour": "Primal",
+   "mods": {
+    "extra_rare_t3": 4,
+    "wisp_monsters_after": 115,
+    "item_rarity": 131,
+    "lifeforce_quantity": 88
+   },
+   "rewards": {}
+  },
+  "wisps": {}
+ },
+ "2026-11-21_18-44-34-601_result.png": {
+  "lifeforce": [
+   [
+    1116,
+    "Primal"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_19-06-50-935_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Fertile Shrub",
+   "colour": "Vivid",
+   "mods": {
+    "spawn_rate": 102,
+    "pack_size": 43,
+    "chance_rare": 81
+   },
+   "rewards": {
+    "Stacked Deck": 1
+   }
+  },
+  "wisps": {},
+  "_note": "a health bar crosses the reward line"
+ },
+ "2026-11-21_19-07-12-076_result.png": {
+  "lifeforce": [
+   [
+    829,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_19-09-51-765_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Gnarled Tree",
+   "colour": "Vivid",
+   "mods": {
+    "spawn_rate": 82,
+    "spawned": 45,
+    "experience": 183
+   },
+   "rewards": {
+    "Stacked Deck": 1
+   }
+  },
+  "wisps": {}
+ },
+ "2026-11-21_19-10-10-443_result.png": {
+  "lifeforce": [
+   [
+    872,
+    "Vivid"
+   ]
+  ],
+  "wisps": {}
+ },
+ "2026-11-21_19-32-46-901_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Knotted Growth",
+   "colour": "Primal",
+   "mods": {
+    "pack_size": 52,
+    "extra_rare_t3": 4,
+    "wisps_on_fauna": 5461,
+    "chance_magic": 81
+   },
+   "rewards": {}
+  },
+  "wisps": {},
+  "_note": "before a reroll"
+ },
+ "2026-11-21_19-32-49-255_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Fertile Oak",
+   "colour": "Primal",
+   "mods": {
+    "extra_magic_t2": 7,
+    "wisps_released": 69,
+    "wisps_on_fauna": 4515,
+    "item_rarity": 127
+   },
+   "rewards": {}
+  },
+  "wisps": {},
+  "_note": "after the reroll: new name, same type, same screen position"
+ },
+ "2026-11-21_19-55-09-565_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Tangled Brush",
+   "colour": "Vivid",
+   "mods": {
+    "pack_size": 37,
+    "extra_rare_t3": 4,
+    "chance_magic": 97,
+    "experience": 165
+   },
+   "rewards": {}
+  },
+  "wisps": {
+   "purple": 1313,
+   "blue": 358
+  },
+  "_note": "a health bar covers 'Sacred' in the first mod"
+ },
+ "2026-11-21_20-02-03-146_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Misshapen Brush",
+   "colour": "Wild",
+   "mods": {
+    "extra_magic_t2": 10,
+    "wisps_released": 37,
+    "item_rarity": 115
+   },
+   "rewards": {
+    "Currency Items": 3
+   }
+  },
+  "wisps": {
+   "purple": 1313,
+   "blue": 358
+  },
+  "_note": "wisp counter over light stone"
+ },
+ "2026-11-21_20-02-56-184_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Weathered Shrub",
+   "colour": "Vivid",
+   "mods": {
+    "spawn_rate": 96,
+    "pack_size": 43,
+    "lifeforce_quantity": 99,
+    "chance_rare": 126
+   },
+   "rewards": {}
+  },
+  "wisps": {
+   "purple": 1313,
+   "blue": 358
+  }
+ },
+ "2026-11-21_20-17-07-967_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Twisted Vegetation",
+   "colour": "Vivid",
+   "mods": {
+    "extra_magic_t2": 7,
+    "wisps_released": 67,
+    "wisps_on_fauna": 5404,
+    "lifeforce_quantity": 142
+   },
+   "rewards": {}
+  },
+  "wisps": {
+   "purple": 2927,
+   "yellow": 2674,
+   "blue": 466
+  },
+  "_note": "tooltip under the buff icons; counter over heavy sparks (unknown counts are acceptable, wrong ones are not)"
+ },
+ "2026-11-21_20-17-12-181_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Twisted Vegetation",
+   "colour": "Vivid",
+   "mods": {
+    "extra_magic_t2": 7,
+    "wisps_released": 67,
+    "wisps_on_fauna": 5404,
+    "lifeforce_quantity": 142
+   },
+   "rewards": {}
+  },
+  "wisps": {
+   "purple": 2927,
+   "yellow": 2674,
+   "blue": 466
+  }
+ },
+ "2026-11-21_21-43-07-169_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Twisted Oak",
+   "colour": "Wild",
+   "mods": {
+    "pack_size": 33,
+    "spawned": 37,
+    "wisps_on_fauna": 3163,
+    "lifeforce_quantity": 124
+   },
+   "rewards": {}
+  },
+  "wisps": {
+   "purple": 846,
+   "yellow": 4300,
+   "blue": 3616
+  }
+ },
+ "2026-11-21_21-49-16-063_node.png": {
+  "tooltip": {
+   "kind": "flora",
+   "rarity": "rare",
+   "name": "Weathered Vegetation",
+   "colour": "Wild",
+   "mods": {
+    "spawned": 46,
+    "wisps_released": 52,
+    "wisps_on_fauna": 4035
+   },
+   "rewards": {
+    "Stacked Deck": 3
+   }
+  },
+  "wisps": {
+   "purple": 846,
+   "yellow": 4300,
+   "blue": 3616
+  }
+ }
+}
